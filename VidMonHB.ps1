@@ -1478,6 +1478,7 @@ function displayForm() {
   $cbx_delAfterConv.Add_MouseEnter({ Show-ToolTip $this })
   $cbx_delAfterConv.Add_MouseLeave({ $obj_tt.Hide($form) })
   $cbx_delAfterConv.Tag = "Maintain, Delete or Recycle the original file after conversion."
+                          "`nNOTE - Recycle only works on local files. Files on network drives will be deleted!"
 
   <#
   $cbx_delAfterConv                = New-Object system.Windows.Forms.CheckBox
