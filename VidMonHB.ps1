@@ -214,6 +214,9 @@ Video Monitor HandBrake Converter - Windows PowerShell Script
             1.20   05/15/2020 Corrected delFile fname message
                               Corrected log file cleanup and changed to Recycle log files
             1.21   05/16/2020 PS 7.0.1 fix.  Removed using assembly microsoft.visualbasic
+            1.22   05/25/2020 assembly microsoft.visualbasic required for Recycle to work.
+                              Will need to figure something else out for 7.0.1.
+                              Corrected $errorCount issue.
 
   First time execution may require running the following command (for PowerShell 5 & lower)
     Set-ExecutionPolicy Unrestricted -Scope CurrentUser -Force
@@ -267,7 +270,7 @@ When the Move File option is set, converted files are moved to the approriate fo
 #>
 
 # Used for Recycle Bin logic
-#using assembly microsoft.visualbasic
+using assembly microsoft.visualbasic
 using namespace microsoft.visualbasic
 
 #Parameters - Make sure all parameters have a trailing comma except for the final one
@@ -395,7 +398,7 @@ Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 #Script Version
-$version="1.21"
+$version="1.22"
 $beginTime=Get-Date
 
 #Parm/Config entry type (Windows form or Powershell entry)
@@ -697,7 +700,7 @@ function chkForCompletion($jobList) {
         }
         else { writelog ("HandBrake error found. Original file was not removed.`nPlease review log " + 
                         $job.dtlLogFile) -logSeverity "E" 
-               $errorCount+=1 
+               $errorCount += 1 
         }
       } #$delAfterConv
       clearTitleMeta($job.newFileName)
@@ -2738,7 +2741,7 @@ If ($Null -eq (Get-Content $postExecCmd -ErrorAction SilentlyContinue)) {
 }
 WriteLog "`nVidmonHB Processing Completed."
 writeLog "`nSummary Log=$sumLogFile`n"
-if($errorCount) {writeLog "$errorCount Error(s) Found - Please review logs" -logSeverity "E" }
+if($errorCount -gt 0) {writeLog "$errorCount Error(s) Found - Please review logs" -logSeverity "E" }
 writeLog ""  
 Remove-Item $resumeFile -ErrorAction SilentlyContinue
 if ($postLog -ne "Never") {
@@ -2768,11 +2771,11 @@ $textEncoding = [System.Text.Encoding]::UTF8
 # $smsToList array can be a comma delimited list (i.e. @("7327352069@vtext.com", "7325555555@vtext.com")
 $smsToList = @("7327352069@vtext.com")
 
-if ($errorCount -or $readOnlyErrCnt) {$subject="$serverName - VidMonHB ERROR notification"}
+if (($errorCount -gt 0) -or $readOnlyErrCnt) {$subject="$serverName - VidMonHB ERROR notification"}
 else {$subject = "$serverName - VidMonHB Successful notification"}
 
 #Send an SMS alert if the any errors were found
-if($errorCount) {
+if($errorCount -gt 0) {
   #$s = New-Object System.Security.SecureString
   #$creds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList "NT AUTHORITY\ANONYMOUS LOGON", $S
   #$smsToList = @()
@@ -2793,7 +2796,7 @@ if($errorCount) {
 #Send an email notification
 #$smtpToEmail="mrpaulwass@hotmail.com"
 $body = "<font face=""verdana"" size=""3"">See attached log for results</font>" 
-if($errorCount) {
+if($errorCount -gt 0) {
   $body = "<font face=""verdana"" size=""3""><font color=""red"">HandBrake errors " +
   "occurred during conversion</br></br>"
 }
