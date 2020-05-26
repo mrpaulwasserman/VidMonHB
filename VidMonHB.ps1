@@ -2844,3 +2844,4 @@ Send-MailMessage @emailProps
 All Cores = 255 = 11111111
 Add the decimal values together for which core you want to use. 255 = All 8 cores.
 #>
+#TODO - Corrections needed for $TVShowBasePath. Needs to have \ as final character.  Chk MovieBasePath too.
