@@ -217,6 +217,7 @@ Video Monitor HandBrake Converter - Windows PowerShell Script
             1.22   05/25/2020 assembly microsoft.visualbasic required for Recycle to work.
                               Will need to figure something else out for 7.0.1.
                               Corrected $errorCount issue.
+            1.23   06/01/2020 Small correction to correct slash.
 
   First time execution may require running the following command (for PowerShell 5 & lower)
     Set-ExecutionPolicy Unrestricted -Scope CurrentUser -Force
@@ -398,7 +399,7 @@ Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 #Script Version
-$version="1.22"
+$version="1.23"
 $beginTime=Get-Date
 
 #Parm/Config entry type (Windows form or Powershell entry)
@@ -2607,6 +2608,12 @@ if ($ParallelProcMax -le 1) {
             "$estCompMins minutes.  ETA $estCompTime`n" )
 }
 
+if ( -not $in.Endswith("\")) { $in += "\" }
+if ( -not $out.Endswith("\")) { $out += "\" }
+if ( -not $movieBasePath.Endswith("\")) { $movieBasePath += "\" }
+if ( -not $TVShowBasePath.Endswith("\")) { $TVShowBasePath += "\" }
+
+
 ### TESTING
 #return  #TESTING
 ### TESTING
@@ -2622,10 +2629,13 @@ foreach ($file in $videoFiles) {
   clearTitleMeta($file.fullName)
   if ($outSameAsIn) {
     $folder = Split-Path $file -Parent
-    $newFileName = $folder + "\" + $file.baseName + ".mp4"
+    if ( -not $folder.Endswith("\")) { $folder += "\" }
+#    $newFileName = $folder + "\" + $file.baseName + ".mp4"
+    $newFileName = $folder + $file.baseName + ".mp4"
   }
   else {
-    $newFileName = $out + "\" + $file.baseName + ".mp4"
+#    $newFileName = $out + "\" + $file.baseName + ".mp4"
+    $newFileName = $out + $file.baseName + ".mp4"
   }
   
   #This will determine which preset file to use (defaults to Movie)
