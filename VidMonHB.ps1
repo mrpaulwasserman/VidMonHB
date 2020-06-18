@@ -127,6 +127,10 @@ Video Monitor HandBrake Converter - Windows PowerShell Script
                Never = Never open the log file
     Default  : Always
 
+.PARAMETER 24
+    $repeatCtr : # of times to repeat this script
+    Default  : 0
+
 .INPUTS
 
   VidMonHB.ps-properties
@@ -218,6 +222,7 @@ Video Monitor HandBrake Converter - Windows PowerShell Script
                               Will need to figure something else out for 7.0.1.
                               Corrected $errorCount issue.
             1.23   06/01/2020 Small correction to correct slash.
+            1.24   06/13/2020 Add logic to repeat n # of times and made some minor corrections.
 
   First time execution may require running the following command (for PowerShell 5 & lower)
     Set-ExecutionPolicy Unrestricted -Scope CurrentUser -Force
@@ -268,6 +273,10 @@ When the Move File option is set, converted files are moved to the approriate fo
 .EXAMPLE
   VidMonHB.ps1 -delAfterConv Maintain -tvPreset VeryFastDDtoAAC
   --> Converts mkv and avi files, uses a HandBrake preset named VeryFastDDtoAAC
+
+.EXAMPLE
+  VidMonHB.ps1 -repeatCtr 5
+  --> Runs the VidMonHB script 5 times
 #>
 
 # Used for Recycle Bin logic
@@ -390,8 +399,12 @@ Param
     # Error = Only open log if an error occurs
     # Never = Never open the log file
     [Parameter(Position=23)]
-    [string]$postLog = "Always"
-           
+    [string]$postLog = "Always",
+
+    # of times to repeat this script
+    [Parameter(Position=24)]
+    [int]$repeatCtr = 0
+
   )
 
 #-------------------------------------------[Declarations]-------------------------------------------
@@ -399,7 +412,7 @@ Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 #Script Version
-$version="1.23"
+$version="1.24"
 $beginTime=Get-Date
 
 #Parm/Config entry type (Windows form or Powershell entry)
@@ -435,9 +448,6 @@ $readOnlyErrCnt=@()
 [boolean]$exit = $true
 #SMTP Information
 $serverName = "PlexDad"
-#$smtpServer = "localhost"
-#$smtpFromEmail="mrpaulwass@hotmail.com"
-#$smtpToEmail="mrpaulwass@hotmail.com"
 
 #Form variables
 $blue = [System.Drawing.Color]::FromArgb(0,120,250)
@@ -701,7 +711,7 @@ function chkForCompletion($jobList) {
         }
         else { writelog ("HandBrake error found. Original file was not removed.`nPlease review log " + 
                         $job.dtlLogFile) -logSeverity "E" 
-               $errorCount += 1 
+               $script:errorCount += 1 
         }
       } #$delAfterConv
       clearTitleMeta($job.newFileName)
@@ -805,7 +815,7 @@ function displayForm() {
   #$form.StartPosition              = 'CenterScreen'
   $Form.StartPosition              = 'Manual'
   $Form.Location                   = '0, 0'
-  $form.ClientSize                 = [System.Drawing.Size]::new(1456,830)
+  $form.ClientSize                 = [System.Drawing.Size]::new(1456,780)
   $form.FormBorderStyle            = $bs3
   $form.BackColor                  = $blue
   $form.TopMost                    = $false
@@ -820,7 +830,7 @@ function displayForm() {
   $gbx_title.width                 = 1370
   $gbx_title.BackColor             = $blue
   $gbx_title.ForeColor             = $white
-  $gbx_title.location              = New-Object System.Drawing.Point(48,30)
+  $gbx_title.location              = New-Object System.Drawing.Point(48,10)
 
   $lbl_title                       = New-Object system.Windows.Forms.Label
   #$lbl_title.text                  = "VidMonHB"
@@ -867,7 +877,7 @@ function displayForm() {
   $gbx_location.text               = "File Location Info"
   $gbx_location.Font               = $v9bi.font
   $gbx_location.ForeColor          = $white
-  $gbx_location.location           = New-Object System.Drawing.Point(46,129)
+  $gbx_location.location           = New-Object System.Drawing.Point(46,105)
 
   $gbx_hbInfo                      = New-Object system.Windows.Forms.Groupbox
   $gbx_hbInfo.height               = 245
@@ -875,23 +885,23 @@ function displayForm() {
   $gbx_hbInfo.text                 = "Handbrake Info"
   $gbx_hbInfo.Font                 = $v9bi.font
   $gbx_hbInfo.ForeColor            = $white
-  $gbx_hbInfo.location             = New-Object System.Drawing.Point(719,129)
+  $gbx_hbInfo.location             = New-Object System.Drawing.Point(719,105)
 
   $gbx_convInfo                    = New-Object system.Windows.Forms.Groupbox
-  $gbx_convInfo.height             = 245
+  $gbx_convInfo.height             = 260
   $gbx_convInfo.width              = 641
   $gbx_convInfo.text               = "Conversion Options"
   $gbx_convInfo.Font               = $v9bi.font
   $gbx_convInfo.ForeColor          = $white
-  $gbx_convInfo.location           = New-Object System.Drawing.Point(47,408)
+  $gbx_convInfo.location           = New-Object System.Drawing.Point(47,358)
 
   $gbx_postInfo                    = New-Object system.Windows.Forms.Groupbox
-  $gbx_postInfo.height             = 245
+  $gbx_postInfo.height             = 260
   $gbx_postInfo.width              = 701
   $gbx_postInfo.text               = "Post Processing Info"
   $gbx_postInfo.Font               = $v9bi.font
   $gbx_postInfo.ForeColor          = $white
-  $gbx_postInfo.location           = New-Object System.Drawing.Point(719,407)
+  $gbx_postInfo.location           = New-Object System.Drawing.Point(719,358)
 
   $lbl_in                          = New-Object system.Windows.Forms.Label
   $lbl_in.text                     = "Input"
@@ -1272,7 +1282,7 @@ function displayForm() {
   $lbl_vidtypes.AutoSize           = $true
   $lbl_vidtypes.width              = 25
   $lbl_vidtypes.height             = 10
-  $lbl_vidtypes.location           = New-Object System.Drawing.Point(23,37)
+  $lbl_vidtypes.location           = New-Object System.Drawing.Point(23,32)
   $lbl_vidtypes.Font               = $v12.font
   $lbl_vidtypes.ForeColor          = $lblColor
 
@@ -1282,7 +1292,7 @@ function displayForm() {
   $txt_vidtypes.text               = $vidTypes
   $txt_vidtypes.width              = 427
   $txt_vidtypes.height             = 20
-  $txt_vidtypes.location           = New-Object System.Drawing.Point(186,34)
+  $txt_vidtypes.location           = New-Object System.Drawing.Point(186,29)
   $txt_vidtypes.Font               = $v12.font
   $txt_vidtypes.ForeColor          = $blue
   $txt_vidtypes.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($txt_vidtypes.Tag) })
@@ -1297,7 +1307,7 @@ function displayForm() {
   $lbl_limit.AutoSize              = $true
   $lbl_limit.width                 = 25
   $lbl_limit.height                = 10
-  $lbl_limit.location              = New-Object System.Drawing.Point(9,72)
+  $lbl_limit.location              = New-Object System.Drawing.Point(9,67)
   $lbl_limit.Font                  = $v12.font
   $lbl_limit.ForeColor             = $lblColor
 
@@ -1307,7 +1317,7 @@ function displayForm() {
   $txt_limit.text                  = $limit
   $txt_limit.width                 = 50
   $txt_limit.height                = 20
-  $txt_limit.location              = New-Object System.Drawing.Point(186,69)
+  $txt_limit.location              = New-Object System.Drawing.Point(186,64)
   $txt_limit.Font                  = $v12.font
   $txt_limit.ForeColor             = $blue
   $txt_limit.MaxLength             = 4
@@ -1322,7 +1332,7 @@ function displayForm() {
   $lbl_ParallelProcMax.AutoSize    = $true
   $lbl_ParallelProcMax.width       = 25
   $lbl_ParallelProcMax.height      = 10
-  $lbl_ParallelProcMax.location    = New-Object System.Drawing.Point(25,104)
+  $lbl_ParallelProcMax.location    = New-Object System.Drawing.Point(25,99)
   $lbl_ParallelProcMax.Font        = $v12.font
   $lbl_ParallelProcMax.ForeColor   = $lblColor
 
@@ -1338,7 +1348,7 @@ function displayForm() {
   $cbx_ParallelProcMax.Text = ""
   @('1','2','3','4','5','6','7','8','9','10') | ForEach-Object {[void] $cbx_ParallelProcMax.Items.Add($_)}
   $cbx_ParallelProcMax.Text        = $currentText
-  $cbx_ParallelProcMax.location    = New-Object System.Drawing.Point(184,103)
+  $cbx_ParallelProcMax.location    = New-Object System.Drawing.Point(184,98)
   $cbx_ParallelProcMax.Font        = $v12.font
   $cbx_ParallelProcMax.ForeColor   = $blue
   $cbx_ParallelProcMax.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($cbx_ParallelProcMax.Tag) })
@@ -1356,7 +1366,7 @@ function displayForm() {
   $lbl_ParallelProcMsg.AutoSize    = $true
   $lbl_ParallelProcMsg.width       = 25
   $lbl_ParallelProcMsg.height      = 10
-  $lbl_ParallelProcMsg.location    = New-Object System.Drawing.Point(240,104)
+  $lbl_ParallelProcMsg.location    = New-Object System.Drawing.Point(240,99)
   $lbl_ParallelProcMsg.Font        = $v12b.font
   $lbl_ParallelProcMsg.ForeColor   = $lblColor
 
@@ -1365,14 +1375,14 @@ function displayForm() {
   $gbx_outSameAsIn.TabStop         = $true
   $gbx_outSameAsIn.height          = 76
   $gbx_outSameAsIn.width           = 179
-  $gbx_outSameAsIn.location        = New-Object System.Drawing.Point(12,140)
+  $gbx_outSameAsIn.location        = New-Object System.Drawing.Point(12,135)
 
   $lbl_outSameAsIn                 = New-Object system.Windows.Forms.Label
   $lbl_outSameAsIn.text            = "Output dest same"
   $lbl_outSameAsIn.AutoSize        = $true
   $lbl_outSameAsIn.width           = 25
   $lbl_outSameAsIn.height          = 10
-  $lbl_outSameAsIn.location        = New-Object System.Drawing.Point(15,21)
+  $lbl_outSameAsIn.location        = New-Object System.Drawing.Point(15,16)
   $lbl_outSameAsIn.Font            = $ss12.font
   $lbl_outSameAsIn.ForeColor       = $lblColor
 
@@ -1381,7 +1391,7 @@ function displayForm() {
   $lbl_outSameAsIn2.AutoSize       = $true
   $lbl_outSameAsIn2.width          = 25
   $lbl_outSameAsIn2.height         = 10
-  $lbl_outSameAsIn2.location       = New-Object System.Drawing.Point(19,43)
+  $lbl_outSameAsIn2.location       = New-Object System.Drawing.Point(19,38)
   $lbl_outSameAsIn2.Font           = $ss12.font
   $lbl_outSameAsIn2.ForeColor      = $lblColor
 
@@ -1390,7 +1400,7 @@ function displayForm() {
   $cbx_outSameAsIn.AutoSize        = $false
   $cbx_outSameAsIn.width           = 20
   $cbx_outSameAsIn.height          = 17
-  $cbx_outSameAsIn.location        = New-Object System.Drawing.Point(152,31)
+  $cbx_outSameAsIn.location        = New-Object System.Drawing.Point(152,26)
   $cbx_outSameAsIn.Font            = $ss12.font
   $cbx_outSameAsIn.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($cbx_outSameAsIn.Tag) })
   $cbx_outSameAsIn.Add_LostFocus({ Paint-FocusBorder $this; $script:outSameAsIn=$cbx_outSameAsIn.Checked })
@@ -1408,14 +1418,14 @@ function displayForm() {
   $gbx_movefiles.TabStop           = $true
   $gbx_movefiles.height            = 76
   $gbx_movefiles.width             = 168
-  $gbx_movefiles.location          = New-Object System.Drawing.Point(224,140)
+  $gbx_movefiles.location          = New-Object System.Drawing.Point(224,135)
 
   $lbl_movefiles                   = New-Object system.Windows.Forms.Label
   $lbl_movefiles.text              = "Move files after"
   $lbl_movefiles.AutoSize          = $true
   $lbl_movefiles.width             = 25
   $lbl_movefiles.height            = 10
-  $lbl_movefiles.location          = New-Object System.Drawing.Point(16,22)
+  $lbl_movefiles.location          = New-Object System.Drawing.Point(16,17)
   $lbl_movefiles.Font              = $ss12.font
   $lbl_movefiles.ForeColor         = $lblColor
 
@@ -1424,7 +1434,7 @@ function displayForm() {
   $lbl_movefiles2.AutoSize         = $true
   $lbl_movefiles2.width            = 25
   $lbl_movefiles2.height           = 10
-  $lbl_movefiles2.location         = New-Object System.Drawing.Point(32,43)
+  $lbl_movefiles2.location         = New-Object System.Drawing.Point(32,38)
   $lbl_movefiles2.Font             = $ss12.font
   $lbl_movefiles2.ForeColor        = $lblColor
 
@@ -1433,7 +1443,7 @@ function displayForm() {
   $cbx_movefiles.AutoSize          = $false
   $cbx_movefiles.width             = 20
   $cbx_movefiles.height            = 17
-  $cbx_movefiles.location          = New-Object System.Drawing.Point(138,31)
+  $cbx_movefiles.location          = New-Object System.Drawing.Point(138,26)
   $cbx_movefiles.Font              = $ss12.font
   $cbx_movefiles.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($cbx_movefiles.Tag) })
   $cbx_movefiles.Add_LostFocus({ Paint-FocusBorder $this; $script:movefiles=$cbx_movefiles.Checked })
@@ -1449,14 +1459,14 @@ function displayForm() {
   $gbx_delAfterConv.TabStop        = $true
   $gbx_delAfterConv.height         = 76
   $gbx_delAfterConv.width          = 200
-  $gbx_delAfterConv.location       = New-Object System.Drawing.Point(420,140)
+  $gbx_delAfterConv.location       = New-Object System.Drawing.Point(420,135)
 
   $lbl_delAfterConv                = New-Object system.Windows.Forms.Label
   $lbl_delAfterConv.text           = " Delete`nOriginal"
   $lbl_delAfterConv.AutoSize       = $true
   $lbl_delAfterConv.width          = 25
   $lbl_delAfterConv.height         = 10
-  $lbl_delAfterConv.location       = New-Object System.Drawing.Point(9,20)
+  $lbl_delAfterConv.location       = New-Object System.Drawing.Point(9,15)
   $lbl_delAfterConv.Font           = $ss12.font
   $lbl_delAfterConv.ForeColor      = $lblColor
 
@@ -1470,7 +1480,7 @@ function displayForm() {
   $cbx_delAfterConv.Text           = ""
   @('Maintain','Delete','Recycle') | ForEach-Object {[void] $cbx_delAfterConv.Items.Add($_)}
   $cbx_delAfterConv.Text           = $currentText
-  $cbx_delAfterConv.location       = New-Object System.Drawing.Point(82,29)
+  $cbx_delAfterConv.location       = New-Object System.Drawing.Point(82,24)
   $cbx_delAfterConv.Font           = $ss12.font
   $cbx_delAfterConv.ForeColor      = $blue
   $cbx_delAfterConv.DropDownStyle  = 2 #DropDownList
@@ -1487,7 +1497,7 @@ function displayForm() {
   $cbx_delAfterConv.AutoSize       = $false
   $cbx_delAfterConv.width          = 20
   $cbx_delAfterConv.height         = 17
-  $cbx_delAfterConv.location       = New-Object System.Drawing.Point(122,33)
+  $cbx_delAfterConv.location       = New-Object System.Drawing.Point(122,28)
   $cbx_delAfterConv.Font           = $ss12.font
   $cbx_delAfterConv.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($cbx_delAfterConv.Tag) })
   $cbx_delAfterConv.Add_LostFocus({ Paint-FocusBorder $this; $script:delAfterConv=$cbx_delAfterConv.Checked })
@@ -1501,17 +1511,17 @@ function displayForm() {
   $lbl_postExecCmd.AutoSize        = $true
   $lbl_postExecCmd.width           = 25
   $lbl_postExecCmd.height          = 10
-  $lbl_postExecCmd.location        = New-Object System.Drawing.Point(17,37)
+  $lbl_postExecCmd.location        = New-Object System.Drawing.Point(17,32)
   $lbl_postExecCmd.Font            = $v12.font
   $lbl_postExecCmd.ForeColor       = $lblColor
 
   $txt_postExecCmd                 = New-Object system.Windows.Forms.TextBox
   $txt_postExecCmd.Text            = $postExecCmd
-  $txt_postExecCmd.TabIndex        = 17
+  $txt_postExecCmd.TabIndex        = 18
   $txt_postExecCmd.multiline       = $false
   $txt_postExecCmd.width           = 500
   $txt_postExecCmd.height          = 20
-  $txt_postExecCmd.location        = New-Object System.Drawing.Point(186,31)
+  $txt_postExecCmd.location        = New-Object System.Drawing.Point(186,26)
   $txt_postExecCmd.Font            = $v12.font
   $txt_postExecCmd.ForeColor       = $blue
   $txt_postExecCmd.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($txt_postExecCmd.Tag) })
@@ -1525,17 +1535,17 @@ function displayForm() {
   $lbl_postExecArgs.AutoSize       = $true
   $lbl_postExecArgs.width          = 25
   $lbl_postExecArgs.height         = 10
-  $lbl_postExecArgs.location       = New-Object System.Drawing.Point(17,72)
+  $lbl_postExecArgs.location       = New-Object System.Drawing.Point(17,67)
   $lbl_postExecArgs.Font           = $v12.font
   $lbl_postExecArgs.ForeColor      = $lblColor
 
   $txt_postExecArgs                = New-Object system.Windows.Forms.TextBox
   $txt_postExecArgs.Text           = $postExecArgs
-  $txt_postExecArgs.TabIndex       = 18
+  $txt_postExecArgs.TabIndex       = 19
   $txt_postExecArgs.multiline      = $false
   $txt_postExecArgs.width          = 500
   $txt_postExecArgs.height         = 20
-  $txt_postExecArgs.location       = New-Object System.Drawing.Point(186,68)
+  $txt_postExecArgs.location       = New-Object System.Drawing.Point(186,63)
   $txt_postExecArgs.Font           = $v12.font
   $txt_postExecArgs.ForeColor      = $blue
   $txt_postExecArgs.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($txt_postExecArgs.Tag) })
@@ -1544,6 +1554,14 @@ function displayForm() {
   $txt_postExecArgs.Add_MouseLeave({ $obj_tt.Hide($form) })
   $txt_postExecArgs.Tag = "Arguments to be passed to the post execution command."
 
+  $gbx_postNotification            = New-Object system.Windows.Forms.Groupbox
+  $gbx_postNotification.height     = 145
+  $gbx_postNotification.width      = 420
+  #$gbx_postNotification.text       = "File Location Info"
+  $gbx_postNotification.Font       = $v9bi.font
+  $gbx_postNotification.ForeColor  = $white
+  $gbx_postNotification.location   = New-Object System.Drawing.Point(35,92)
+
   $lbl_postNotify                  = New-Object system.Windows.Forms.Label
   $lbl_postNotify.text             = "Post notification"
   $lbl_postNotify.AutoSize         = $true
@@ -1555,8 +1573,8 @@ function displayForm() {
 
   $cbx_postNotify                  = New-Object system.Windows.Forms.ComboBox
   $cbx_postNotify.Text             = $postNotify
-  $cbx_postNotify.TabIndex         = 19
-  $cbx_postNotify.text             = "None"
+  $cbx_postNotify.TabIndex         = 20
+#  $cbx_postNotify.text             = "None"
   $cbx_postNotify.width            = 80
   $cbx_postNotify.height           = 20
   $currentText = ($cbx_postNotify).Text
@@ -1570,141 +1588,23 @@ function displayForm() {
   $cbx_postNotify.DropDownStyle    = 2 #DropDownList
   $cbx_postNotify.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($cbx_postNotify.Tag) })
   $cbx_postNotify.Add_LostFocus({ Paint-FocusBorder $this; $script:postNotify=$cbx_postNotify.text })
+  $cbx_postNotify.Add_SelectedIndexChanged({
+    if ($cbx_postNotify.SelectedItem -eq "None") {  
+      $txt_smtpServer.Enabled          = $false
+      $txt_smtpFromEmail.Enabled       = $false
+      $txt_smtpToEmail.Enabled         = $false
+    }
+    else {
+      $txt_smtpServer.Enabled          = $true
+      $txt_smtpFromEmail.Enabled       = $true
+      $txt_smtpToEmail.Enabled         = $true
+      }
+    })
   $cbx_postNotify.Add_MouseEnter({ Show-ToolTip $this })
   $cbx_postNotify.Add_MouseLeave({ $obj_tt.Hide($form) })
   $cbx_postNotify.Tag = "Type of notification to send after conversion completes." +
-                        "`nAll = Send log via after conversions have completed." +
+                        "`nAll = Send log after conversions have completed." +
                         "`nError = Only send logs if an error occurs."
-
-  $lbl_postNotify                  = New-Object system.Windows.Forms.Label
-  $lbl_postNotify.text             = "Post notification"
-  $lbl_postNotify.AutoSize         = $true
-  $lbl_postNotify.width            = 25
-  $lbl_postNotify.height           = 10
-  $lbl_postNotify.location         = New-Object System.Drawing.Point(44,107)
-  $lbl_postNotify.Font             = $v12.font
-  $lbl_postNotify.ForeColor        = $lblColor
-
-  $cbx_postNotify                  = New-Object system.Windows.Forms.ComboBox
-  $cbx_postNotify.Text             = $postNotify
-  $cbx_postNotify.TabIndex         = 19
-  $cbx_postNotify.text             = "None"
-  $cbx_postNotify.width            = 80
-  $cbx_postNotify.height           = 20
-  $currentText = ($cbx_postNotify).Text
-  $cbx_postNotify.Items.Clear()
-  $cbx_postNotify.Text = ""
-  @('None','All','Error') | ForEach-Object {[void] $cbx_postNotify.Items.Add($_)}
-  $cbx_postNotify.Text             = $currentText
-  $cbx_postNotify.location         = New-Object System.Drawing.Point(186,104)
-  $cbx_postNotify.Font             = $ss12.font
-  $cbx_postNotify.ForeColor        = $blue
-  $cbx_postNotify.DropDownStyle    = 2 #DropDownList
-  $cbx_postNotify.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($cbx_postNotify.Tag) })
-  $cbx_postNotify.Add_LostFocus({ Paint-FocusBorder $this; $script:postNotify=$cbx_postNotify.text })
-  $cbx_postNotify.Add_MouseEnter({ Show-ToolTip $this })
-  $cbx_postNotify.Add_MouseLeave({ $obj_tt.Hide($form) })
-  $cbx_postNotify.Tag = "Type of notification to send after conversion completes." +
-                        "`nAll = Send log via after conversions have completed." +
-                        "`nError = Only send logs if an error occurs."
-
-  $lbl_postNotify                  = New-Object system.Windows.Forms.Label
-  $lbl_postNotify.text             = "Post notification"
-  $lbl_postNotify.AutoSize         = $true
-  $lbl_postNotify.width            = 25
-  $lbl_postNotify.height           = 10
-  $lbl_postNotify.location         = New-Object System.Drawing.Point(44,107)
-  $lbl_postNotify.Font             = $v12.font
-  $lbl_postNotify.ForeColor        = $lblColor
-
-  $cbx_postNotify                  = New-Object system.Windows.Forms.ComboBox
-  $cbx_postNotify.Text             = $postNotify
-  $cbx_postNotify.TabIndex         = 19
-  $cbx_postNotify.text             = "None"
-  $cbx_postNotify.width            = 80
-  $cbx_postNotify.height           = 20
-  $currentText = ($cbx_postNotify).Text
-  $cbx_postNotify.Items.Clear()
-  $cbx_postNotify.Text = ""
-  @('None','All','Error') | ForEach-Object {[void] $cbx_postNotify.Items.Add($_)}
-  $cbx_postNotify.Text             = $currentText
-  $cbx_postNotify.location         = New-Object System.Drawing.Point(186,104)
-  $cbx_postNotify.Font             = $ss12.font
-  $cbx_postNotify.ForeColor        = $blue
-  $cbx_postNotify.DropDownStyle    = 2 #DropDownList
-  $cbx_postNotify.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($cbx_postNotify.Tag) })
-  $cbx_postNotify.Add_LostFocus({ Paint-FocusBorder $this; $script:postNotify=$cbx_postNotify.text })
-  $cbx_postNotify.Add_MouseEnter({ Show-ToolTip $this })
-  $cbx_postNotify.Add_MouseLeave({ $obj_tt.Hide($form) })
-  $cbx_postNotify.Tag = "Type of notification to send after conversion completes." +
-                        "`nAll = Send log via after conversions have completed." +
-                        "`nError = Only send logs if an error occurs."
-
-
-  $lbl_postNotify                  = New-Object system.Windows.Forms.Label
-  $lbl_postNotify.text             = "Post notification"
-  $lbl_postNotify.AutoSize         = $true
-  $lbl_postNotify.width            = 25
-  $lbl_postNotify.height           = 10
-  $lbl_postNotify.location         = New-Object System.Drawing.Point(44,107)
-  $lbl_postNotify.Font             = $v12.font
-  $lbl_postNotify.ForeColor        = $lblColor
-
-  $cbx_postNotify                  = New-Object system.Windows.Forms.ComboBox
-  $cbx_postNotify.Text             = $postNotify
-  $cbx_postNotify.TabIndex         = 19
-  $cbx_postNotify.text             = "None"
-  $cbx_postNotify.width            = 80
-  $cbx_postNotify.height           = 20
-  $currentText = ($cbx_postNotify).Text
-  $cbx_postNotify.Items.Clear()
-  $cbx_postNotify.Text = ""
-  @('None','All','Error') | ForEach-Object {[void] $cbx_postNotify.Items.Add($_)}
-  $cbx_postNotify.Text             = $currentText
-  $cbx_postNotify.location         = New-Object System.Drawing.Point(186,104)
-  $cbx_postNotify.Font             = $ss12.font
-  $cbx_postNotify.ForeColor        = $blue
-  $cbx_postNotify.DropDownStyle    = 2 #DropDownList
-  $cbx_postNotify.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($cbx_postNotify.Tag) })
-  $cbx_postNotify.Add_LostFocus({ Paint-FocusBorder $this; $script:postNotify=$cbx_postNotify.text })
-  $cbx_postNotify.Add_MouseEnter({ Show-ToolTip $this })
-  $cbx_postNotify.Add_MouseLeave({ $obj_tt.Hide($form) })
-  $cbx_postNotify.Tag = "Type of notification to send after conversion completes." +
-                        "`nAll = Send log via after conversions have completed." +
-                        "`nError = Only send logs if an error occurs."
-
-  $lbl_postLog                     = New-Object system.Windows.Forms.Label
-  $lbl_postLog.text                = "Post open log"
-  $lbl_postLog.AutoSize            = $true
-  $lbl_postLog.width               = 25
-  $lbl_postLog.height              = 10
-  $lbl_postLog.location            = New-Object System.Drawing.Point(350,107)
-  $lbl_postLog.Font                = $v12.font
-  $lbl_postLog.ForeColor           = $lblColor
-
-  $cbx_postLog                     = New-Object system.Windows.Forms.ComboBox
-  $cbx_postLog.Text                = $postLog
-  $cbx_postLog.TabIndex            = 20
-  $cbx_postLog.width               = 80
-  $cbx_postLog.height              = 20
-  $currentText                     = ($cbx_postLog).Text
-  $cbx_postLog.Items.Clear()
-  $cbx_postLog.Text                = ""
-  @('Always','Error','Never') | ForEach-Object {[void] $cbx_postLog.Items.Add($_)}
-  $cbx_postLog.Text                = $currentText
-  $cbx_postLog.location            = New-Object System.Drawing.Point(475,104)
-  $cbx_postLog.Font                = $ss12.font
-  $cbx_postLog.ForeColor           = $blue
-  $cbx_postLog.DropDownStyle       = 2 #DropDownList
-  $cbx_postLog.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($cbx_postLog.Tag) })
-  $cbx_postLog.Add_LostFocus({ Paint-FocusBorder $this; $script:postLog=$cbx_postLog.text })
-  $cbx_postLog.Add_MouseEnter({ Show-ToolTip $this })
-  $cbx_postLog.Add_MouseLeave({ $obj_tt.Hide($form) })
-  $cbx_postLog.Tag = "Should the log automatically be opened after completion." +
-                        "`nAlways = Always open log file." +
-                        "`n   Error = Only open log if an error occurs." +
-                        "`n  Never = Never open the log file."
-
 
   $lbl_smtpServer                  = New-Object system.Windows.Forms.Label
   $lbl_smtpServer.text             = "SMTP Server"
@@ -1719,7 +1619,7 @@ function displayForm() {
   $txt_smtpServer.Text             = $smtpServer
   $txt_smtpServer.TabIndex         = 21
   $txt_smtpServer.multiline        = $false
-  $txt_smtpServer.width            = 500
+  $txt_smtpServer.width            = 250
   $txt_smtpServer.height           = 20
   $txt_smtpServer.location         = New-Object System.Drawing.Point(186,137)
   $txt_smtpServer.Font             = $v12.font
@@ -1743,7 +1643,7 @@ function displayForm() {
   $txt_smtpFromEmail.Text          = $smtpFromEmail
   $txt_smtpFromEmail.TabIndex      = 22
   $txt_smtpFromEmail.multiline     = $false
-  $txt_smtpFromEmail.width         = 500
+  $txt_smtpFromEmail.width         = 250
   $txt_smtpFromEmail.height        = 20
   $txt_smtpFromEmail.location      = New-Object System.Drawing.Point(186,169)
   $txt_smtpFromEmail.Font          = $v12.font
@@ -1767,7 +1667,7 @@ function displayForm() {
   $txt_smtpToEmail.Text            = $smtpToEmail
   $txt_smtpToEmail.TabIndex        = 23
   $txt_smtpToEmail.multiline       = $false
-  $txt_smtpToEmail.width           = 500
+  $txt_smtpToEmail.width           = 250
   $txt_smtpToEmail.height          = 20
   $txt_smtpToEmail.location        = New-Object System.Drawing.Point(186,202)
   $txt_smtpToEmail.Font            = $v12.font
@@ -1778,12 +1678,71 @@ function displayForm() {
   $txt_smtpToEmail.Add_MouseLeave({ $obj_tt.Hide($form) })
   $txt_smtpToEmail.Tag = "Email address(s) to send post notification to."
 
+  $lbl_postLog                     = New-Object system.Windows.Forms.Label
+  $lbl_postLog.text                = "Post open log"
+  $lbl_postLog.AutoSize            = $true
+  $lbl_postLog.width               = 25
+  $lbl_postLog.height              = 10
+  $lbl_postLog.location            = New-Object System.Drawing.Point(475,107)
+  $lbl_postLog.Font                = $v12.font
+  $lbl_postLog.ForeColor           = $lblColor
+
+  $cbx_postLog                     = New-Object system.Windows.Forms.ComboBox
+  $cbx_postLog.Text                = $postLog
+  $cbx_postLog.TabIndex            = 24
+  $cbx_postLog.width               = 80
+  $cbx_postLog.height              = 20
+  $currentText                     = ($cbx_postLog).Text
+  $cbx_postLog.Items.Clear()
+  $cbx_postLog.Text                = ""
+  @('Always','Error','Never') | ForEach-Object {[void] $cbx_postLog.Items.Add($_)}
+  $cbx_postLog.Text                = $currentText
+  $cbx_postLog.location            = New-Object System.Drawing.Point(600,104)
+  $cbx_postLog.Font                = $ss12.font
+  $cbx_postLog.ForeColor           = $blue
+  $cbx_postLog.DropDownStyle       = 2 #DropDownList
+  $cbx_postLog.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($cbx_postLog.Tag) })
+  $cbx_postLog.Add_LostFocus({ Paint-FocusBorder $this; $script:postLog=$cbx_postLog.text })
+  $cbx_postLog.Add_MouseEnter({ Show-ToolTip $this })
+  $cbx_postLog.Add_MouseLeave({ $obj_tt.Hide($form) })
+  $cbx_postLog.Tag = "Should the log automatically be opened after completion." +
+                        "`nAlways = Always open log file." +
+                        "`n   Error = Only open log if an error occurs." +
+                        "`n  Never = Never open the log file."
+
+
+  $lbl_repeatCtr                   = New-Object system.Windows.Forms.Label
+  $lbl_repeatCtr.text              = "Repeat Runs"
+  $lbl_repeatCtr.AutoSize          = $true
+  $lbl_repeatCtr.width             = 24
+  $lbl_repeatCtr.height            = 10
+  $lbl_repeatCtr.location          = New-Object System.Drawing.Point(485,142)
+  $lbl_repeatCtr.Font              = $v12.font
+  $lbl_repeatCtr.ForeColor         = $lblColor
+
+  $txt_repeatCtr                   = New-Object system.Windows.Forms.TextBox
+  $txt_repeatCtr.MaxLength         = 4
+  $txt_repeatCtr.Text              = $repeatCtr
+  $txt_repeatCtr.TabIndex          = 25
+  $txt_repeatCtr.multiline         = $false
+  $txt_repeatCtr.width             = 60
+  $txt_repeatCtr.height            = 20
+  $txt_repeatCtr.location          = New-Object System.Drawing.Point(600,142)
+  $txt_repeatCtr.Font              = $v12.font
+  $txt_repeatCtr.ForeColor         = $blue
+  $txt_repeatCtr.Add_GotFocus({ Paint-FocusBorder $this; $txt_Info.text = ($txt_repeatCtr.Tag) })
+  $txt_repeatCtr.Add_LostFocus({ Paint-FocusBorder $this; $script:repeatCtr=$txt_repeatCtr.Text})
+  $txt_repeatCtr.Add_MouseEnter({ Show-ToolTip $this })
+  $txt_repeatCtr.Add_MouseLeave({ $obj_tt.Hide($form) })
+  $txt_repeatCtr.Tag = "# of times VidMonHB should repeat execution (with the same options)."
+
+
   $lbl_Info                        = New-Object system.Windows.Forms.Label
   $lbl_Info.text                   = "Information"
   $lbl_Info.AutoSize               = $true
   $lbl_Info.width                  = 25
   $lbl_Info.height                 = 10
-  $lbl_Info.location               = New-Object System.Drawing.Point(50,685)
+  $lbl_Info.location               = New-Object System.Drawing.Point(50,655)
   $lbl_Info.Font                   = $v12.font
   $lbl_Info.ForeColor              = $lblColor
 
@@ -1794,7 +1753,7 @@ function displayForm() {
   $txt_Info.Multiline              = $true
   $txt_Info.width                  = 1237
   $txt_Info.height                 = 75
-  $txt_Info.location               = New-Object System.Drawing.Point(160,667)
+  $txt_Info.location               = New-Object System.Drawing.Point(160,637)
   $txt_Info.Font                   = $v12.font
   $txt_Info.ForeColor              = $blue
   $txt_Info.ReadOnly               = $true
@@ -1803,21 +1762,21 @@ function displayForm() {
   #$txt_Info.Add_LostFocus({ Paint-FocusBorder $this })
 
   $lbl_propfileloc                 = New-Object system.Windows.Forms.Label
-  $lbl_propfileloc.text            = "Config/Parms file"
+  $lbl_propfileloc.text            = "Cfg/Parms file"
   $lbl_propfileloc.AutoSize        = $true
   $lbl_propfileloc.width           = 25
   $lbl_propfileloc.height          = 10
   $lbl_propfileloc.BorderStyle =
-  $lbl_propfileloc.location        = New-Object System.Drawing.Point(11,760)
+  $lbl_propfileloc.location        = New-Object System.Drawing.Point(36,730)
   $lbl_propfileloc.Font            = $v12.font
   $lbl_propfileloc.ForeColor       = $lblColor
 
   $cbx_propfileloc                 = New-Object system.Windows.Forms.ComboBox
-  $cbx_propfileloc.TabIndex        = 24
+  $cbx_propfileloc.TabIndex        = 26
   $cbx_propfileloc.text            = $propfileloc
   $cbx_propfileloc.width           = 415
   $cbx_propfileloc.height          = 20
-  $cbx_propfileloc.location        = New-Object System.Drawing.Point(160,760)
+  $cbx_propfileloc.location        = New-Object System.Drawing.Point(160,730)
   $cbx_propfileloc.Font            = $ss12.font
   $cbx_propfileloc.ForeColor       = $blue
   $cbx_propfileloc.AutoCompleteMode= 3 #SuggestAppend
@@ -1865,12 +1824,12 @@ function displayForm() {
     })
 
   $btn_saveConfig                  = New-Object system.Windows.Forms.Button
-  $btn_saveConfig.TabIndex         = 25
+  $btn_saveConfig.TabIndex         = 27
   $btn_saveConfig.BackColor        = $white
   $btn_saveConfig.text             = "Save Config/Parms"
   $btn_saveConfig.width            = 229
   $btn_saveConfig.height           = 30
-  $btn_saveConfig.location         = New-Object System.Drawing.Point(590,760)
+  $btn_saveConfig.location         = New-Object System.Drawing.Point(590,730)
   $btn_saveConfig.Font             = $v14b.Font
   $btn_saveConfig.ForeColor        = $blue
   $btn_saveConfig.Add_Click({saveConfig})
@@ -1890,12 +1849,12 @@ function displayForm() {
   $lbl_errorMsg.visible            = $false
 
   $btn_execute                     = New-Object system.Windows.Forms.Button
-  $btn_execute.TabIndex            = 26
+  $btn_execute.TabIndex            = 28
   $btn_execute.BackColor           = $white
   $btn_execute.text                = "Execute Script"
   $btn_execute.width               = 187
   $btn_execute.height              = 30
-  $btn_execute.location            = New-Object System.Drawing.Point(1115,760)
+  $btn_execute.location            = New-Object System.Drawing.Point(1115,730)
   $btn_execute.Font                = $v14b.Font
   $btn_execute.ForeColor           = $blue
   $btn_execute.Add_GotFocus({  Paint-FocusBorder $this; $txt_Info.text ="Execute script with the parameters shown" })
@@ -1903,12 +1862,12 @@ function displayForm() {
   $btn_execute.Add_Click({$script:exit = $false; $form.Dispose()})
 
   $btn_exit                        = New-Object system.Windows.Forms.Button
-  $btn_exit.TabIndex               = 27
+  $btn_exit.TabIndex               = 29
   $btn_exit.BackColor              = $white
   $btn_exit.text                   = "Exit"
   $btn_exit.width                  = 70
   $btn_exit.height                 = 30
-  $btn_exit.location               = New-Object System.Drawing.Point(1320,760)
+  $btn_exit.location               = New-Object System.Drawing.Point(1320,730)
   $btn_exit.Font                   = $v14b.Font
   $btn_exit.ForeColor              = $blue
   $btn_exit.DialogResult           = "Cancel"
@@ -1924,7 +1883,7 @@ function displayForm() {
   $gbx_outSameAsIn.controls.AddRange(@($lbl_outSameAsIn,$cbx_outSameAsIn,$lbl_outSameAsIn2))
   $gbx_movefiles.controls.AddRange(@($lbl_movefiles,$lbl_movefiles2,$cbx_movefiles))
   $gbx_delAfterConv.controls.AddRange(@($cbx_delAfterConv,$lbl_delAfterConv))
-  $gbx_postInfo.controls.AddRange(@($lbl_postExecCmd,$txt_postExecCmd,$lbl_postExecArgs,$txt_postExecArgs,$lbl_postNotify,$cbx_postNotify,$lbl_postLog,$cbx_postLog,$lbl_smtpServer,$txt_smtpServer,$lbl_smtpFromEmail,$txt_smtpFromEmail,$lbl_smtpToEmail,$txt_smtpToEmail))
+  $gbx_postInfo.controls.AddRange(@($lbl_postExecCmd,$txt_postExecCmd,$lbl_postExecArgs,$txt_postExecArgs,$lbl_postNotify,$cbx_postNotify,$lbl_postLog,$cbx_postLog,$lbl_smtpServer,$txt_smtpServer,$lbl_smtpFromEmail,$txt_smtpFromEmail,$lbl_smtpToEmail,$txt_smtpToEmail,$gbx_postNotification,$lbl_repeatCtr,$txt_repeatCtr))
 
   function Paint-FocusBorder([System.Windows.Forms.Control]$control) {
       # get the parent control (usually the form itself)
@@ -1963,6 +1922,7 @@ function displayForm() {
     $obj_tt.Show($text, $control.Parent, $pos, $duration)
   }
 
+  # Perform tasks the first time the form opens
   # call the Paint-FocusBorder when the form is first drawn
   $form.Add_Shown({
     Paint-FocusBorder $txt_in
@@ -1980,7 +1940,12 @@ function displayForm() {
       $lbl_ParallelProcMsg.text = "Parallel Processing Enabled"} else {$lbl_ParallelProcMsg.text = ""}
     if ($cbx_outSameAsIn.Checked -eq $true) {$txt_out.Visible=$false; $lbl_out2.Visible=$true }
       else {$txt_out.Visible=$true; $lbl_out2.Visible=$false}
-  })
+    if ($cbx_postNotify.SelectedItem -eq "None") {  
+        $txt_smtpServer.Enabled          = $false
+        $txt_smtpFromEmail.Enabled       = $false
+        $txt_smtpToEmail.Enabled         = $false
+      }
+    })
 
   #Check if the preset exists within the presets.json file
   function chkPreset($object){
@@ -2103,7 +2068,7 @@ function loadConfig($parmFile) {
   catch {
     $errorMsg = $_.Exception.Message
     #Invalid Pattern error comes from videoFiles information. Ignore
-    $txt_Info.AppendText("Error reading $parmFile - $errorMsg")
+    $txt_Info.AppendText("Error trying to read parameter file in this folder.  $parmFile - $errorMsg")
     $txt_Info.AppendText("`n")
     #Scroll to the end of the textbox
     $txt_Info.SelectionStart = $txt_Info.TextLength;
@@ -2222,7 +2187,7 @@ try {
 catch {
   $errorMsg = $_.Exception.Message
   #Invalid Pattern error comes from videoFiles information. Ignore
-  writeLog "Error reading $parmFile" -logType "S" -logSeverity "E"
+  writeLog "Error trying to read parameter file in this folder.  $parmFile" -logType "S" -logSeverity "E"
   writeLog ("$errorMsg") -logType "S" -logSeverity "E"
   writeLog "Exiting" -logType "S" -logSeverity "E"
   return
@@ -2234,155 +2199,160 @@ if ($resume) {Remove-Item $parmFile -Force -ErrorAction SilentlyContinue}
 if ($entryType -ne "winForm") {displayParms("S")}
 
 #http://msdn.microsoft.com/en-us/library/x83z1d9f(v=vs.84).aspx
-$a = new-object -comobject wscript.shell 
-$intAnswer = $a.popup("Press the Enter key to edit parameters.`n`nTimeout in 5 seconds",5,"Edit Parameters",4096) 
+# Check if repeating.
+if ($repeatCtr -gt 0) {$repeatCtr = $repeatCtr-1}
+else {
+  $a = new-object -comobject wscript.shell 
+  $intAnswer = $a.popup("Press the Enter key to edit parameters.`n`nTimeout in 5 seconds",5,"Edit Parameters",4096) 
 
-if ($intAnswer -gt -1) {
-  if ($entryType -eq 'winForm') {
-      displayForm
-      if ($exit -eq $true) {writeLog "Exiting" -logType "S"; exit}
+  if ($intAnswer -gt -1) {
+    if ($entryType -eq 'winForm') {
+        displayForm
+        if ($exit -eq $true) {writeLog "Exiting" -logType "S"; exit}
+        if ($repeatCtr -gt 0) {$repeatCtr = $repeatCtr-1}
+      }
+    else {
+      if ($intAnswer -gt -1) {
+        $option = "loop"
+        while ($null -ne $option -and $option -notin ("88", "99")) {
+          displayParms("S")
+          $option = Read-Host -Prompt "Enter parameter change"
+          if ([string]::IsNullOrWhiteSpace($option)) { $option = "99" }
+          switch ($option) {
+            "1" {
+              $result = (Read-Host -Prompt "Video types [$vidTypes]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $vidTypes = $result }
+            }
+            "2" {
+              $result = (Read-Host -Prompt "Input location [$in]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $in = $result }
+              if ( -not $in.Endswith("\")) { $in += "\" }
+            }
+            "3" {
+              $result = (Read-Host -Prompt "Output location [$out]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $out = $result }
+              if ( -not $out.Endswith("\")) { $out += "\" }
+            }
+            "4" {
+              $result = (Read-Host -Prompt "Same As Input Override [$outSameAsIn]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) {
+                if ($result.ToUpper() -eq "TRUE") { $outSameAsIn = $true }
+                if ($result.ToUpper() -eq "FALSE") { $outSameAsIn = $false }
+              }
+            }
+            "5" {
+              $result = (Read-Host -Prompt "Delete original [$delAfterConv]").Replace("`"", "").ToUpper()
+              if ( -not [string]::IsNullOrWhiteSpace($result) -and ($result -in ("Maintain", "Delete", "Recycle"))) {
+                $delAfterConv = $result.Trim()
+              }
+            }
+          "6" {
+              $result = (Read-Host -Prompt "HandBrake file location [$hbloc]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $hbloc = $result }
+            }
+            "7" {
+              $result = (Read-Host -Prompt "HB preset file location [$hbpreloc]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $hbpreloc = $result }
+            }
+            "8" {
+              $result = (Read-Host -Prompt "HandBrake presets [$tvPreset]").Replace("`"", "")
+              $presetCheck = '"PresetName": "' + $result + '",'
+              if ( -not [string]::IsNullOrWhiteSpace($result)) {
+                if (Select-String -Path $hbpreloc -Pattern $presetCheck) {
+                  $tvPreset = $result
+                }
+                else {
+                  [console]::beep(1000, 200)
+                  [console]::beep(1000, 200)
+                  writeLog ('Error - A preset named "' + $result + '" could not be found in preset file ' + $hbpreloc) -logType "S" -logSeverity "E"
+                  Start-Sleep 4
+                }
+              }
+            }
+            "9" {
+              $result = (Read-Host -Prompt "HandBrake presets [$moviePreset]").Replace("`"", "")
+              $presetCheck = '"PresetName": "' + $result + '",'
+              if ( -not [string]::IsNullOrWhiteSpace($result)) {
+                if (Select-String -Path $hbpreloc -Pattern $presetCheck) {
+                  $moviePreset = $result
+                }
+                else {
+                  [console]::beep(1000, 200)
+                  [console]::beep(1000, 200)
+                  writeLog ('Error - A preset named "' + $result + '" could not be found in preset file ' + $hbpreloc) -logType "S" -logSeverity "E"
+                  Start-Sleep 4
+                }
+              }
+            }
+            "10" {
+              $result = (Read-Host -Prompt "HandBrake options [$hbopts]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $hbopts = $result }
+            }
+            "11" {
+              $result = (Read-Host -Prompt "Property location [$propfileloc]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $propfileloc = $result }
+            }
+            "12" {
+              $result = (Read-Host -Prompt "Move files option [$movefiles]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) {
+                if ($result.ToUpper() -eq "TRUE") { $movefiles = $true }
+                if ($result.ToUpper() -eq "FALSE") { $movefiles = $false }
+              }
+            }
+            "13" {
+              $result = (Read-Host -Prompt "Log file path [$logfilePath]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $logfilePath = $result }
+            }
+            "14" {
+              $result = (Read-Host -Prompt "TV Show base path [$TVShowBasePath]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $TVShowBasePath = $result }
+              if ( -not $TVShowBasePath.Endswith("\")) { $TVShowBasePath += "\" }
+            }
+            "15" {
+              $result = (Read-Host -Prompt "Movie base path [$movieBasePath]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $movieBasePath = $result }
+              if ( -not $movieBasePath.Endswith("\")) { $movieBasePath += "\" }
+            }
+            "16" {
+              $result = (Read-Host -Prompt "Parallel processing max [$ParallelProcMax]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result) -and ([int]$result -in 1..10)) {
+                $ParallelProcMax = $result
+              }
+            }
+            "17" {
+              $result = (Read-Host -Prompt "# of files to process [$limit]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result) -and ([int]$result -in 0..999)) {
+                $limit = $result
+              }
+            }
+            "18" {
+              $result = (Read-Host -Prompt "Post exec cmd [$postExecCmd]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $postExecCmd = $result }
+            }
+            "19" {
+              $result = (Read-Host -Prompt "Post exec arguments [$postExecArgs]").Replace("`"", "")
+              if ( -not [string]::IsNullOrWhiteSpace($result)) { $postExecArgs = $result }
+            }
+            "20" {
+              $result = (Read-Host -Prompt "Post notification [$postNotify]").Replace("`"", "").ToUpper()
+              if ( -not [string]::IsNullOrWhiteSpace($result) -and ($result -in ("None", "All", "Error"))) {
+                $postNotify = $result.Trim()
+              }
+            }
+            "77" {
+              #save config changes back to the vidMonHB.ps-properties file
+              saveConfig
+            }
+            "88" {
+              writeLog "Exiting" -logType "S"
+              if ( -not ($resume)) { Remove-Item $resumeFile -ErrorAction SilentlyContinue }
+              exit
+            }
+            Default { $null }
+          } 
+        } # while
+      } # if ($intAnswer -gt -1)
     }
-  else {
-    if ($intAnswer -gt -1) {
-      $option = "loop"
-      while ($null -ne $option -and $option -notin ("88", "99")) {
-        displayParms("S")
-        $option = Read-Host -Prompt "Enter parameter change"
-        if ([string]::IsNullOrWhiteSpace($option)) { $option = "99" }
-        switch ($option) {
-          "1" {
-            $result = (Read-Host -Prompt "Video types [$vidTypes]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $vidTypes = $result }
-          }
-          "2" {
-            $result = (Read-Host -Prompt "Input location [$in]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $in = $result }
-            if ( -not $in.Endswith("\")) { $in += "\" }
-          }
-          "3" {
-            $result = (Read-Host -Prompt "Output location [$out]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $out = $result }
-            if ( -not $out.Endswith("\")) { $out += "\" }
-          }
-          "4" {
-            $result = (Read-Host -Prompt "Same As Input Override [$outSameAsIn]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) {
-              if ($result.ToUpper() -eq "TRUE") { $outSameAsIn = $true }
-              if ($result.ToUpper() -eq "FALSE") { $outSameAsIn = $false }
-            }
-          }
-          "5" {
-            $result = (Read-Host -Prompt "Delete original [$delAfterConv]").Replace("`"", "").ToUpper()
-            if ( -not [string]::IsNullOrWhiteSpace($result) -and ($result -in ("Maintain", "Delete", "Recycle"))) {
-              $delAfterConv = $result.Trim()
-            }
-          }
-        "6" {
-            $result = (Read-Host -Prompt "HandBrake file location [$hbloc]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $hbloc = $result }
-          }
-          "7" {
-            $result = (Read-Host -Prompt "HB preset file location [$hbpreloc]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $hbpreloc = $result }
-          }
-          "8" {
-            $result = (Read-Host -Prompt "HandBrake presets [$tvPreset]").Replace("`"", "")
-            $presetCheck = '"PresetName": "' + $result + '",'
-            if ( -not [string]::IsNullOrWhiteSpace($result)) {
-              if (Select-String -Path $hbpreloc -Pattern $presetCheck) {
-                $tvPreset = $result
-              }
-              else {
-                [console]::beep(1000, 200)
-                [console]::beep(1000, 200)
-                writeLog ('Error - A preset named "' + $result + '" could not be found in preset file ' + $hbpreloc) -logType "S" -logSeverity "E"
-                Start-Sleep 4
-              }
-            }
-          }
-          "9" {
-            $result = (Read-Host -Prompt "HandBrake presets [$moviePreset]").Replace("`"", "")
-            $presetCheck = '"PresetName": "' + $result + '",'
-            if ( -not [string]::IsNullOrWhiteSpace($result)) {
-              if (Select-String -Path $hbpreloc -Pattern $presetCheck) {
-                $moviePreset = $result
-              }
-              else {
-                [console]::beep(1000, 200)
-                [console]::beep(1000, 200)
-                writeLog ('Error - A preset named "' + $result + '" could not be found in preset file ' + $hbpreloc) -logType "S" -logSeverity "E"
-                Start-Sleep 4
-              }
-            }
-          }
-          "10" {
-            $result = (Read-Host -Prompt "HandBrake options [$hbopts]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $hbopts = $result }
-          }
-          "11" {
-            $result = (Read-Host -Prompt "Property location [$propfileloc]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $propfileloc = $result }
-          }
-          "12" {
-            $result = (Read-Host -Prompt "Move files option [$movefiles]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) {
-              if ($result.ToUpper() -eq "TRUE") { $movefiles = $true }
-              if ($result.ToUpper() -eq "FALSE") { $movefiles = $false }
-            }
-          }
-          "13" {
-            $result = (Read-Host -Prompt "Log file path [$logfilePath]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $logfilePath = $result }
-          }
-          "14" {
-            $result = (Read-Host -Prompt "TV Show base path [$TVShowBasePath]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $TVShowBasePath = $result }
-            if ( -not $TVShowBasePath.Endswith("\")) { $TVShowBasePath += "\" }
-          }
-          "15" {
-            $result = (Read-Host -Prompt "Movie base path [$movieBasePath]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $movieBasePath = $result }
-            if ( -not $movieBasePath.Endswith("\")) { $movieBasePath += "\" }
-          }
-          "16" {
-            $result = (Read-Host -Prompt "Parallel processing max [$ParallelProcMax]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result) -and ([int]$result -in 1..10)) {
-              $ParallelProcMax = $result
-            }
-          }
-          "17" {
-            $result = (Read-Host -Prompt "# of files to process [$limit]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result) -and ([int]$result -in 0..999)) {
-              $limit = $result
-            }
-          }
-          "18" {
-            $result = (Read-Host -Prompt "Post exec cmd [$postExecCmd]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $postExecCmd = $result }
-          }
-          "19" {
-            $result = (Read-Host -Prompt "Post exec arguments [$postExecArgs]").Replace("`"", "")
-            if ( -not [string]::IsNullOrWhiteSpace($result)) { $postExecArgs = $result }
-          }
-          "20" {
-            $result = (Read-Host -Prompt "Post notification [$postNotify]").Replace("`"", "").ToUpper()
-            if ( -not [string]::IsNullOrWhiteSpace($result) -and ($result -in ("None", "All", "Error"))) {
-              $postNotify = $result.Trim()
-            }
-          }
-          "77" {
-            #save config changes back to the vidMonHB.ps-properties file
-            saveConfig
-          }
-          "88" {
-            writeLog "Exiting" -logType "S"
-            if ( -not ($resume)) { Remove-Item $resumeFile -ErrorAction SilentlyContinue }
-            exit
-          }
-          Default { $null }
-        } 
-      } # while
-    } # if ($intAnswer -gt -1)
   }
 }
 #Populate the resume parameters which will be written to the resumeVidMonHB.txt file.
@@ -2755,16 +2725,27 @@ writeLog "`nSummary Log=$sumLogFile`n"
 if($errorCount -gt 0) {writeLog "$errorCount Error(s) Found - Please review logs" -logSeverity "E" }
 writeLog ""  
 Remove-Item $resumeFile -ErrorAction SilentlyContinue
-if ($postLog -ne "Never") {
-  if ($postLog -eq "Error" -and $errorCount -gt 0) {Invoke-Item $sumLogFile}
-  else {Invoke-Item $sumLogFile}
+switch ($postLog) {
+  "Never" {$null}
+  "Error" {if ($errorCount -gt 0) {Invoke-Item $sumLogFile}}
+  "Always" {Invoke-Item $sumLogFile}
 }
 
 #--------------------------------------------[Notifications]---------------------------------------------
-
 #If set, send out notification information
-if ($postNotify.ToUpper() -notin ("ALL","ERROR")) {return}
-if ($postNotify.ToUpper() -eq "ERROR" -and $errorCount -eq 0) {return} # Only notify if errors found
+if ($postNotify.ToUpper() -notin ("ALL","ERROR")) {
+  if ($repeatCtr -eq 0) {return}
+  else {
+    Invoke-Expression -Command ($PSCommandPath + ' -repeatCtr $repeatCtr')
+    return }
+}
+# Only notify if errors found
+if ($postNotify.ToUpper() -eq "ERROR" -and $errorCount -eq 0) {
+  if ($repeatCtr -eq 0) {return}
+  else {
+    Invoke-Expression -Command ($PSCommandPath + ' -repeatCtr $repeatCtr')
+    return }
+} 
 
 <# SMS Message Information
     Alltel   - #1234567890@message.alltel.com
@@ -2854,4 +2835,10 @@ Send-MailMessage @emailProps
 All Cores = 255 = 11111111
 Add the decimal values together for which core you want to use. 255 = All 8 cores.
 #>
+
+if ($repeatCtr -eq 0) {return}
+else {
+  Invoke-Expression -Command ($PSCommandPath + ' -repeatCtr $repeatCtr')
+  return }
+
 #TODO - Corrections needed for $TVShowBasePath. Needs to have \ as final character.  Chk MovieBasePath too.
