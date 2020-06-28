@@ -223,12 +223,17 @@ Video Monitor HandBrake Converter - Windows PowerShell Script
                               Corrected $errorCount issue.
             1.23   06/01/2020 Small correction to correct slash.
             1.24   06/13/2020 Add logic to repeat n # of times and made some minor corrections.
+            1.25   06/28/2020 Add colors to highlight disk savings or loss.
+                              Requires PSWriteColor module to be installed
 
   First time execution may require running the following command (for PowerShell 5 & lower)
     Set-ExecutionPolicy Unrestricted -Scope CurrentUser -Force
 
   If you want to recycle files (instead of delete), install this Powershell module
     Install-Module -Name Recycle -RequiredVersion 1.0.2 -Scope CurrentUser -Force
+
+  Run the following install script to include the write command with colors.
+    Install-Module -Name PSWriteColor -Scope CurrentUser -Force
 
   There are tooltips for each of the input fields. If these are not showing up, check the following
   Computer\HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\ 
@@ -412,7 +417,7 @@ Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 #Script Version
-$version="1.24"
+$version="1.25"
 $beginTime=Get-Date
 
 #Parm/Config entry type (Windows form or Powershell entry)
@@ -494,7 +499,6 @@ function clearTitleMeta {
 #Function to write out log information (to logFile and screen)
 function writeLog ($logMsg,$logType,$logSeverity)
 {
-  
   if ($Host.Name -eq "Visual Studio Code Host") {$bgColor="Black"}
   else {$bgColor = [System.Console]::BackgroundColor}
   $fgColor = "Yellow"
@@ -681,10 +685,14 @@ function chkForCompletion($jobList) {
                "   End time: " + $job.endTime.ToString() +
              "   Total time: " + $timeDiff.Hours + " hrs  " + 
                $timeDiff.Minutes + " mins  " + $timeDiff.Seconds + " secs")
-      writeLog ("Start size: " + [math]::Round($job.begSize,3) + " GB   End size: " +
-               [math]::Round($job.endSize,3) + " GB   " + "Disk savings: " + 
-               [math]::Round(($job.begSize - $job.endSize),3) + " GB")
-
+      $sizeInfo = "Start size: " + [math]::Round($job.begSize,3) + " GB   End size: " +
+                  [math]::Round($job.endSize,3) + " GB   "
+      $diskSavings = [math]::Round(($job.begSize - $job.endSize),3) #+ " GB"             
+      writeLog ($sizeInfo + "Disk savings: " + $diskSavings + " GB") -logType "L"
+      if ($diskSavings -ge 0) {
+        Write-Color "$sizeInfo Disk savings: ", $diskSavings, " GB" -Color White, Black, Black -BackGroundColor $bgColor, Green, Green }
+      else {        
+        Write-Color "$sizeInfo Disk loss: ", $diskSavings, " GB" -Color White, White, White -BackGroundColor $bgColor, Red, Red }
       # Now set the file in the resume file as complete
       $replacethis = "Unprocessed videofile="+$job.fullName
       $replacethat = "Completed videofile="+$job.fullName
@@ -2100,6 +2108,9 @@ function recycleFile($fname) {
 
 Clear-Host
 
+if ($Host.Name -eq "Visual Studio Code Host") {$bgColor="Black"}
+else {$bgColor = [System.Console]::BackgroundColor}
+
 #Check if the user wants to recycle instead of deleting completed files
 $recycleAvailble = $true
 if ( -not (Get-Module -ListAvailable -Name Recycle)) {
@@ -2109,6 +2120,18 @@ if ( -not (Get-Module -ListAvailable -Name Recycle)) {
   $a = new-object -comobject wscript.shell 
   $intAnswer = $a.popup("Warning - The Powershell Recycle module has not installed.`n`nPlease run the following command:`n`n" + 
                         "Install-Module -Name Recycle -RequiredVersion 1.0.2 -Scope CurrentUser -Force",15,"Recycle Module Missing",4096) 
+  #exit
+}
+
+#Check if the user wants to recycle instead of deleting completed files
+$PSWriteColor = $true
+if ( -not (Get-Module -ListAvailable -Name PSWriteColor)) {
+  $PSWriteColor = $false
+  writeLog "Warning - The Powershell PSWriteColor module has not installed." -logType "S" -logSeverity "E"
+  writeLog "Install-Module -Name PSWriteColor -Scope CurrentUser -Force" -logType "S" -logSeverity "E"
+  $a = new-object -comobject wscript.shell 
+  $intAnswer = $a.popup("Warning - The Powershell PSWriteColor module has not installed.`n`nPlease run the following command:`n`n" + 
+                        "Install-Module -Name PSWriteColor -Scope CurrentUser -Force",15,"PSWriteColor Module Missing",4096) 
   #exit
 }
 
@@ -2706,7 +2729,13 @@ foreach ($proc in $procList) {
 $totSizDiff = ($totBegSize-$totEndSize)
 writeLog ("`nDisk space before conversion - " + '{0,7:n3}' -f $totBegSize + " GB")
 writeLog (  "Disk space after conversion  - " + '{0,7:n3}' -f $totEndSize + " GB")
-writeLog (  "Amount of disk space saved   - " + '{0,7:n3}' -f $totSizDiff + " GB")
+#writeLog (  "Amount of disk space saved   - " + '{0,7:n3}' -f $totSizDiff + " GB") -logType "L"
+$totSizDiffStr = '{0,7:n3}' -f $totSizDiff + " GB"
+writeLog (  "Amount of disk space saved   - " + $totSizDiffStr) -logType "L"
+if ($totSizDiff -ge 0) {
+  Write-Color "Amount of disk space saved   - ", $totSizDiffStr -Color Yellow, Black -BackGroundColor $bgColor, Green }
+else {        
+  Write-Color "Amount of disk space lost    - ", $totSizDiffStr -Color Yellow, White -BackGroundColor $bgColor, Red }
 
 $endTime  = Get-Date
 $timeDiff = getTimeDiff $beginTime $endTime
