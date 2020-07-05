@@ -423,7 +423,7 @@ Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 #Script Version
-$version="1.25"
+$version="1.26"
 $beginTime=Get-Date
 
 #Parm/Config entry type (Windows form or Powershell entry)
