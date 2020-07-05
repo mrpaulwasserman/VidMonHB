@@ -225,6 +225,12 @@ Video Monitor HandBrake Converter - Windows PowerShell Script
             1.24   06/13/2020 Add logic to repeat n # of times and made some minor corrections.
             1.25   06/28/2020 Add colors to highlight disk savings or loss.
                               Requires PSWriteColor module to be installed
+            1.26   07/02/2020 Minor string correction to ETA.
+                              Add $padSize and correct padding msg (i.e. 0001 of 1000).
+                              Rearrange start msg info a little bit.  Now processing on it's own line.
+                              Add starting size to start time message.
+                              Commented out Clearing metadata msg.
+                              Added background highlighting around ***START and ****COMPLETED msgs.
 
   First time execution may require running the following command (for PowerShell 5 & lower)
     Set-ExecutionPolicy Unrestricted -Scope CurrentUser -Force
@@ -454,6 +460,8 @@ $readOnlyErrCnt=@()
 #SMTP Information
 $serverName = "PlexDad"
 
+[int]$padSize = 3  #Default to 3
+
 #Form variables
 $blue = [System.Drawing.Color]::FromArgb(0,120,250)
 $cyan = [System.Drawing.Color]::FromArgb(0,255,255)
@@ -462,6 +470,7 @@ $white = [System.Drawing.Color]::FromArgb(255,255,255)
 $red = [System.Drawing.Color]::FromArgb(255,0,0)
 $yellow = [System.Drawing.Color]::FromArgb(255,255,0)
 $lblColor = $yellow
+$logBGcolor=$null
 
 $v9bi = New-Object System.Windows.Forms.Label
 $v9bi.font = (new-object System.Drawing.Font('Verdana',9,[System.Drawing.FontStyle]::Bold))
@@ -488,7 +497,7 @@ $bs3 = [System.Windows.Forms.BorderStyle]'Fixed3D'
 function clearTitleMeta {
   Param ([string[]]$fileName)
   if ( -not ($ClearMetaFlag)) {return}
-  writeLog "Clearing metadata from file: $filename" -logOnly "L" 
+  #writeLog "Clearing metadata from file: $filename" -logOnly "L" 
   $fileName = Get-ChildItem -Path $fileName
   $mediaFile = [TagLib.File]::Create($fileName.fullName)
   [TagLib.Mpeg4.AppleTag]$customTag = $mediaFile.GetTag([TagLib.TagTypes]::Apple, 1)
@@ -497,11 +506,12 @@ function clearTitleMeta {
 }
 
 #Function to write out log information (to logFile and screen)
-function writeLog ($logMsg,$logType,$logSeverity)
+function writeLog ($logMsg,$logType,$logSeverity,$logBGcolor)
 {
   if ($Host.Name -eq "Visual Studio Code Host") {$bgColor="Black"}
   else {$bgColor = [System.Console]::BackgroundColor}
   $fgColor = "Yellow"
+  if ($null -ne $logBGcolor) {$bgColor = $logBGcolor; $logBGcolor=$null} #Override
   if ($logSeverity -eq "E") {$fgColor="White";$bgColor="Red"}
   switch ($logType) {
     "L" { Write-Output $logMsg | Out-File $sumLogFile -Append }
@@ -676,7 +686,7 @@ function chkForCompletion($jobList) {
       $job.endTime = Get-Date
       $job.endSize = [math]::Round((get-item $job.newFileName).Length / 1GB,3)
       if ($ParallelProcMax -gt 1 -and $fileCount -gt 1) {
-        writeLog ("****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED***")
+        writeLog "****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED***" -logBGcolor "DarkCyan"
       }
       writeLog ("Completed : " + $job.countMsg + " - """ + $job.newFileName + """")
       writeLog ("Log file  : " + $job.dtlLogFile)
@@ -725,7 +735,7 @@ function chkForCompletion($jobList) {
       clearTitleMeta($job.newFileName)
       moveFile ($job.newFileName)
       if ($ParallelProcMax -lt 2) {
-        writeLog ("****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED***")
+        writeLog "****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED***" -logBGcolor "DarkCyan"
       }
       writeLog "" 
     } #if 
@@ -2578,12 +2588,14 @@ else {
   writeLog "`nSearch found the following $fileCount file(s) to process:"
 }
 
+$padSize = ([string]$fileCount).Length
+
 $i=0
 foreach ($file in $videoFiles) {
   $i++; 
   $fileAttrib=$null
   if ((($file).Attributes -band $readonly -eq $readonly)) {$fileAttrib = " - ReadOnly"}
-  writeLog (([string]$i).PadLeft(3,'0') + " - " + """$file""" + $fileAttrib)
+  writeLog (([string]$i).PadLeft($padSize,'0') + " - " + """$file""" + $fileAttrib)
   if ( -not ($resume)) {
     ("Unprocessed videofile=" + $file.fullName) | Add-Content $resumeFile
   }
@@ -2596,7 +2608,7 @@ if ($ParallelProcMax -le 1) {
   writeLog "`nNow Processing File(s) - Please stand by"
   $estBegSize = [math]::Round(($videoFiles | Measure-Object -Sum Length).Sum / 1GB,3)
   $estCompMins = [math]::Round($estBegSize*6.8855)
-  $estCompTime = ((get-Date).AddMinutes($estCompMins)).ToString('MM/dd/yyyy hh:m:ss tt')
+  $estCompTime = ((get-Date).AddMinutes($estCompMins)).ToString('MM/dd/yyyy hh:mm:ss tt')
   writeLog ("`n$fileCount files to process. Estimated # of mins to complete $estBegSize GB is " +
             "$estCompMins minutes.  ETA $estCompTime`n" )
 }
@@ -2614,11 +2626,13 @@ if ( -not $TVShowBasePath.Endswith("\")) { $TVShowBasePath += "\" }
 #Main processing logic. Start looping through each of the files and run them through HandBrake.
 $i=0
 foreach ($file in $videoFiles) {
-  writeLog ("****START****START****START****START****START****START****START****START****START****START****")
+  writeLog "****START****START****START****START****START****START****START****START****START****START****" -logBGcolor "DarkCyan"
   $i++
-  $countMsg = ([string]$i).PadLeft(3,'0') + " of " + ([string]$fileCount).PadLeft(3,'0')
-  writeLog ("Start Time: " + ($countMsg + " - " + $((Get-Date).ToString()))) 
+  $countMsg = ("Now processing " + ([string]$i).PadLeft($padSize,'0') + " of " + ([string]$fileCount).PadLeft($padSize,'0'))
+  writeLog ($countMsg)
   writeLog ("File Name : """ + $file + """")
+  $begSize = [math]::Round(($file | Measure-Object -Sum Length).Sum / 1GB,3)  
+  writeLog ("Start Time: " + ($((Get-Date).ToString())) + "   Start size: " + '{0,7:n3}' -f $begSize + " GB") 
   clearTitleMeta($file.fullName)
   if ($outSameAsIn) {
     $folder = Split-Path $file -Parent
@@ -2647,7 +2661,7 @@ foreach ($file in $videoFiles) {
   #Should also track log files separately as well
   #Run parallel processes
   if ($ParallelProcMax -gt 1 -and $fileCount -gt 1) {
-    $logName = $file.baseName + "_" + $timestamp + "_" + ([string]$i).PadLeft(3,'0') + "_pp_HBdetails.txt"
+    $logName = $file.baseName + "_" + $timestamp + "_" + ([string]$i).PadLeft($padSize,'0') + "_pp_HBdetails.txt"
     $dtlLogFile = Join-Path -Path $logFilePath -ChildPath $LogName
     Remove-Item $dtlLogFile -ErrorAction SilentlyContinue
     $newProc = Start-Process $hbloc -ArgumentList $cmdArgs -RedirectStandardError $dtlLogFile -PassThru -WindowStyle Minimized
@@ -2680,7 +2694,7 @@ foreach ($file in $videoFiles) {
   } #if ($ParallelProcMax -gt 1 -and $fileCount -gt 1)
   else #Single threaded processing
   {
-    $logName = $file.baseName + "_" + $timestamp + "_" + ([string]$i).PadLeft(3,'0') + "_HBdetails.txt"
+    $logName = $file.baseName + "_" + $timestamp + "_" + ([string]$i).PadLeft($padSize,'0') + "_HBdetails.txt"
     $dtlLogFile = Join-Path -Path $logFilePath -ChildPath $LogName
     Remove-Item $dtlLogFile -ErrorAction SilentlyContinue
     $newProc = Start-Process $hbloc -ArgumentList $cmdArgs -RedirectStandardError $dtlLogFile -PassThru -Wait -NoNewWindow
