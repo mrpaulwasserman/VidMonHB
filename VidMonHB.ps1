@@ -686,7 +686,7 @@ function chkForCompletion($jobList) {
       $job.endTime = Get-Date
       $job.endSize = [math]::Round((get-item $job.newFileName).Length / 1GB,3)
       if ($ParallelProcMax -gt 1 -and $fileCount -gt 1) {
-        writeLog "****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED***" -logBGcolor "DarkCyan"
+        writeLog "****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****" -logBGcolor "DarkCyan"
       }
       writeLog ("Completed : " + $job.countMsg + " - """ + $job.newFileName + """")
       writeLog ("Log file  : " + $job.dtlLogFile)
@@ -735,7 +735,7 @@ function chkForCompletion($jobList) {
       clearTitleMeta($job.newFileName)
       moveFile ($job.newFileName)
       if ($ParallelProcMax -lt 2) {
-        writeLog "****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED***" -logBGcolor "DarkCyan"
+        writeLog "****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****" -logBGcolor "DarkCyan"
       }
       writeLog "" 
     } #if 
