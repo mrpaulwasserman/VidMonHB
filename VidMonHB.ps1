@@ -686,7 +686,7 @@ function chkForCompletion($jobList) {
       $job.endTime = Get-Date
       $job.endSize = [math]::Round((get-item $job.newFileName).Length / 1GB,3)
       if ($ParallelProcMax -gt 1 -and $fileCount -gt 1) {
-        writeLog "****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****" -logBGcolor "DarkCyan"
+        writeLog "****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****" -logBGcolor $msgBGcolor
       }
       writeLog ("Completed : " + $job.countMsg + " - """ + $job.newFileName + """")
       writeLog ("Log file  : " + $job.dtlLogFile)
@@ -735,7 +735,7 @@ function chkForCompletion($jobList) {
       clearTitleMeta($job.newFileName)
       moveFile ($job.newFileName)
       if ($ParallelProcMax -lt 2) {
-        writeLog "****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****" -logBGcolor "DarkCyan"
+        writeLog "****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****COMPLETED****" -logBGcolor $msgBGcolor
       }
       writeLog "" 
     } #if 
@@ -1860,7 +1860,7 @@ function displayForm() {
   $lbl_errorMsg.width              = 25
   $lbl_errorMsg.height             = 10
   $lbl_errorMsg.BorderStyle        =
-  $lbl_errorMsg.location           = New-Object System.Drawing.Point(975,753)
+  $lbl_errorMsg.location           = New-Object System.Drawing.Point(975,723)
   $lbl_errorMsg.Font               = $v12b.font
   $lbl_errorMsg.ForeColor          = $red
   $lbl_errorMsg.BackColor          = $yellow
@@ -2626,7 +2626,9 @@ if ( -not $TVShowBasePath.Endswith("\")) { $TVShowBasePath += "\" }
 #Main processing logic. Start looping through each of the files and run them through HandBrake.
 $i=0
 foreach ($file in $videoFiles) {
-  writeLog "****START****START****START****START****START****START****START****START****START****START****" -logBGcolor "DarkCyan"
+  # If single threaded, alternate the color schemes for START and END msgs
+  if ($ParallelProcMax -le 1) { if ($i % 2 -eq 0) {$msgBGcolor = "DarkCyan"} else {$msgBGcolor = "DarkGray"} }
+  writeLog "****START****START****START****START****START****START****START****START****START****START****" -logBGcolor $msgBGcolor
   $i++
   $countMsg = ("Now processing " + ([string]$i).PadLeft($padSize,'0') + " of " + ([string]$fileCount).PadLeft($padSize,'0'))
   writeLog ($countMsg)
