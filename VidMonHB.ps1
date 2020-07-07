@@ -2630,8 +2630,8 @@ foreach ($file in $videoFiles) {
   if ($ParallelProcMax -le 1) { if ($i % 2 -eq 0) {$msgBGcolor = "DarkCyan"} else {$msgBGcolor = "DarkGray"} }
   writeLog "****START****START****START****START****START****START****START****START****START****START****" -logBGcolor $msgBGcolor
   $i++
-  $countMsg = ("Now processing " + ([string]$i).PadLeft($padSize,'0') + " of " + ([string]$fileCount).PadLeft($padSize,'0'))
-  writeLog ($countMsg)
+  $countMsg = (([string]$i).PadLeft($padSize,'0') + " of " + ([string]$fileCount).PadLeft($padSize,'0'))
+  writeLog ("Now processing " + $countMsg)
   writeLog ("File Name : """ + $file + """")
   $begSize = [math]::Round(($file | Measure-Object -Sum Length).Sum / 1GB,3)  
   writeLog ("Start Time: " + ($((Get-Date).ToString())) + "   Start size: " + '{0,7:n3}' -f $begSize + " GB") 
