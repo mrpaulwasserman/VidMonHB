@@ -668,15 +668,17 @@ function displayParms($logType) {
 
 #Pass in (by ref) table procList. Finalize any completed jobs and update the processed flag
 function chkForCompletion($jobList) {
-  if (($jobList.processed | where-object {$_ -eq $false} | Measure-Object).Count -gt 0) {
-    writeLog ("`nIn Progress") -logType "S"
-    foreach ($job in $joblist) {
-      if ($job.processed -eq $false) {
-        writeLog ($job.countMsg + " - " + $job.baseName) -logType "S"
+  if ($ParallelProcMax -gt 1 -and $fileCount -gt 1) {
+    if (($jobList.processed | where-object {$_ -eq $false} | Measure-Object).Count -gt 0) {
+      writeLog ("`nIn Progress") -logType "S"
+      foreach ($job in $joblist) {
+        if ($job.processed -eq $false) {
+          writeLog ($job.countMsg + " - " + $job.baseName) -logType "S"
+        }
       }
     }
+    writeLog ("") -logType "S"
   }
-  writeLog ("") -logType "S"
 
   foreach ($job in $jobList) { 
     $chkJob = Get-Process -id $job.id -ErrorAction SilentlyContinue
@@ -691,12 +693,16 @@ function chkForCompletion($jobList) {
       writeLog ("Completed : " + $job.countMsg + " - """ + $job.newFileName + """")
       writeLog ("Log file  : " + $job.dtlLogFile)
       $timeDiff = getTimeDiff $job.begTime $job.endTime
-      writeLog ("Start time: " + $job.begTime.ToString() + 
-               "   End time: " + $job.endTime.ToString() +
+      # writeLog ("Start time: " + $job.begTime.ToString() + 
+      #          "   End time: " + $job.endTime.ToString() +
+      #        "   Total time: " + $timeDiff.Hours + " hrs  " + 
+      #          $timeDiff.Minutes + " mins  " + $timeDiff.Seconds + " secs")
+      writeLog ("End time  : " + $job.endTime.ToString() +
              "   Total time: " + $timeDiff.Hours + " hrs  " + 
                $timeDiff.Minutes + " mins  " + $timeDiff.Seconds + " secs")
-      $sizeInfo = "Start size: " + [math]::Round($job.begSize,3) + " GB   End size: " +
-                  [math]::Round($job.endSize,3) + " GB   "
+      # $sizeInfo = "Start size: " + [math]::Round($job.begSize,3) + " GB   End size: " +
+      #             [math]::Round($job.endSize,3) + " GB   "
+      $sizeInfo = "End size  : " + [math]::Round($job.endSize,3) + " GB   "
       $diskSavings = [math]::Round(($job.begSize - $job.endSize),3) #+ " GB"             
       writeLog ($sizeInfo + "Disk savings: " + $diskSavings + " GB") -logType "L"
       if ($diskSavings -ge 0) {
