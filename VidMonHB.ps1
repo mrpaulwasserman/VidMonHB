@@ -2645,7 +2645,8 @@ foreach ($file in $videoFiles) {
   writeLog ("Now processing " + $countMsg)
   writeLog ("File Name : """ + $file + """")
   $begSize = [math]::Round(($file | Measure-Object -Sum Length).Sum / 1GB,3)  
-  writeLog ("Start Time: " + ($((Get-Date).ToString())) + "   Start size: " + '{0,7:n3}' -f $begSize + " GB") 
+  writeLog ("Start Time: " + ($((Get-Date).ToString()))) 
+  writeLog ("Start size: " + $begSize + " GB") 
   clearTitleMeta($file.fullName)
   if ($outSameAsIn) {
     $folder = Split-Path $file -Parent
