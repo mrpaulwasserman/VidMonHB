@@ -697,18 +697,23 @@ function chkForCompletion($jobList) {
       #          "   End time: " + $job.endTime.ToString() +
       #        "   Total time: " + $timeDiff.Hours + " hrs  " + 
       #          $timeDiff.Minutes + " mins  " + $timeDiff.Seconds + " secs")
-      writeLog ("End time  : " + $job.endTime.ToString() +
-             "   Total time: " + $timeDiff.Hours + " hrs  " + 
-               $timeDiff.Minutes + " mins  " + $timeDiff.Seconds + " secs")
+      if ($timeDiff.Hours -eq 0) {
+        $msgTime = "   Total time: " + $timeDiff.Minutes + " mins  " + $timeDiff.Seconds + " secs" }
+      else {
+        $msgTime = "   Total time: " + $timeDiff.Hours + " hrs  " + 
+                   $timeDiff.Minutes + " mins  " + $timeDiff.Seconds + " secs"
+      }        
+      writeLog ("End time  : " + $job.endTime.ToString() + $msgTime)
       # $sizeInfo = "Start size: " + [math]::Round($job.begSize,3) + " GB   End size: " +
       #             [math]::Round($job.endSize,3) + " GB   "
-      $sizeInfo = "End size  : " + [math]::Round($job.endSize,3) + " GB   "
-      $diskSavings = [math]::Round(($job.begSize - $job.endSize),3) #+ " GB"             
-      writeLog ($sizeInfo + "Disk savings: " + $diskSavings + " GB") -logType "L"
+      $sizeInfo = "End size  : " + [math]::Round($job.endSize,3) + " GB  "
+      $diskSavings = [math]::Round(($job.begSize - $job.endSize),3) 
+      $diskSavingsPCT = [string]([math]::Round(($job.endSize / $job.begSize)*100,2)) + "%"
+      writeLog ($sizeInfo + "Disk savings: " + $diskSavings + " GB  " + $diskSavingsPCT) -logType "L"
       if ($diskSavings -ge 0) {
-        Write-Color "$sizeInfo Disk savings: ", $diskSavings, " GB" -Color White, Black, Black -BackGroundColor $bgColor, Green, Green }
+        Write-Color $sizeInfo, "Disk savings: ", $diskSavings, " GB  ", $diskSavingsPCT -Color White, Black, Black, Black, Black -BackGroundColor $bgColor, Green, Green, Green, Green }
       else {        
-        Write-Color "$sizeInfo Disk loss: ", $diskSavings, " GB" -Color White, White, White -BackGroundColor $bgColor, Red, Red }
+        Write-Color $sizeInfo, "Disk loss: ", $diskSavings, " GB" -Color White, White, White, White -BackGroundColor $bgColor, Red, Red, Red }
       # Now set the file in the resume file as complete
       $replacethis = "Unprocessed videofile="+$job.fullName
       $replacethat = "Completed videofile="+$job.fullName
@@ -2752,13 +2757,13 @@ $totSizDiff = ($totBegSize-$totEndSize)
 writeLog ("`nDisk space before conversion - " + '{0,7:n3}' -f $totBegSize + " GB")
 writeLog (  "Disk space after conversion  - " + '{0,7:n3}' -f $totEndSize + " GB")
 #writeLog (  "Amount of disk space saved   - " + '{0,7:n3}' -f $totSizDiff + " GB") -logType "L"
-$totSizDiffStr = '{0,7:n3}' -f $totSizDiff + " GB"
-writeLog (  "Amount of disk space saved   - " + $totSizDiffStr) -logType "L"
+$totSizDiffStr = '{0,7:n3}' -f $totSizDiff + " GB  "
+$diskSavingsPCT = [string]([math]::Round(($totEndSize / $totBegSize)*100,2)) + "%"
+writeLog (  "Amount of disk space saved   - " + $totSizDiffStr + $diskSavingsPCT) -logType "L"
 if ($totSizDiff -ge 0) {
-  Write-Color "Amount of disk space saved   - ", $totSizDiffStr -Color Yellow, Black -BackGroundColor $bgColor, Green }
+  Write-Color "Amount of disk space saved   - ", $totSizDiffStr, $diskSavingsPCT -Color Yellow, Black, Black -BackGroundColor $bgColor, Green, Green }
 else {        
   Write-Color "Amount of disk space lost    - ", $totSizDiffStr -Color Yellow, White -BackGroundColor $bgColor, Red }
-
 $endTime  = Get-Date
 $timeDiff = getTimeDiff $beginTime $endTime
 writeLog ("`nTotal Run time : " + $timeDiff.Hours + " hrs " + $timeDiff.Minutes + 
