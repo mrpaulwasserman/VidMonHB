@@ -708,7 +708,7 @@ function chkForCompletion($jobList) {
       #             [math]::Round($job.endSize,3) + " GB   "
       $sizeInfo = "End size  : " + [math]::Round($job.endSize,3) + " GB  "
       $diskSavings = [math]::Round(($job.begSize - $job.endSize),3) 
-      $diskSavingsPCT = [string]([math]::Round(($job.endSize / $job.begSize)*100,2)) + "%"
+      $diskSavingsPCT = [string](100-[math]::Round(($job.endSize / $job.begSize)*100,2)) + "%"
       writeLog ($sizeInfo + "Disk savings: " + $diskSavings + " GB  " + $diskSavingsPCT) -logType "L"
       if ($diskSavings -ge 0) {
         Write-Color $sizeInfo, "Disk savings: ", $diskSavings, " GB  ", $diskSavingsPCT -Color White, Black, Black, Black, Black -BackGroundColor $bgColor, Green, Green, Green, Green }
@@ -2759,7 +2759,7 @@ writeLog ("`nDisk space before conversion - " + '{0,7:n3}' -f $totBegSize + " GB
 writeLog (  "Disk space after conversion  - " + '{0,7:n3}' -f $totEndSize + " GB")
 #writeLog (  "Amount of disk space saved   - " + '{0,7:n3}' -f $totSizDiff + " GB") -logType "L"
 $totSizDiffStr = '{0,7:n3}' -f $totSizDiff + " GB  "
-$diskSavingsPCT = [string]([math]::Round(($totEndSize / $totBegSize)*100,2)) + "%"
+$diskSavingsPCT = [string](100-[math]::Round(($totEndSize / $totBegSize)*100,2)) + "%"
 writeLog (  "Amount of disk space saved   - " + $totSizDiffStr + $diskSavingsPCT) -logType "L"
 if ($totSizDiff -ge 0) {
   Write-Color "Amount of disk space saved   - ", $totSizDiffStr, $diskSavingsPCT -Color Yellow, Black, Black -BackGroundColor $bgColor, Green, Green }
