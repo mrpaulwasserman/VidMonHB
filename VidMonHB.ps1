@@ -131,7 +131,11 @@ Video Monitor HandBrake Converter - Windows PowerShell Script
     $repeatCtr : # of times to repeat this script
     Default  : 0
 
-.INPUTS
+.PARAMETER 25
+    $repeatMonitor : Continually monitor and repeat running when a file is found
+    Default  : false
+
+    .INPUTS
 
   VidMonHB.ps-properties
 
@@ -231,6 +235,11 @@ Video Monitor HandBrake Converter - Windows PowerShell Script
                               Add starting size to start time message.
                               Commented out Clearing metadata msg.
                               Added background highlighting around ***START and ****COMPLETED msgs.
+            1.27   07/17/2020 Continually monitor folder and execute when files are found.
+                              .\VidMonHB.ps1 -repeatmonitor $true
+            1.28   07/22/2020 Add running history information $HistoryLogFile.
+                              Display history summary during monitor mode
+
 
   First time execution may require running the following command (for PowerShell 5 & lower)
     Set-ExecutionPolicy Unrestricted -Scope CurrentUser -Force
@@ -414,7 +423,11 @@ Param
 
     # of times to repeat this script
     [Parameter(Position=24)]
-    [int]$repeatCtr = 0
+    [int]$repeatCtr = 0,
+
+    # Continually monitor and repeat running when a file is found
+    [Parameter(Position=25)]
+    [Boolean]$repeatMonitor = $false
 
   )
 
@@ -423,7 +436,7 @@ Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 #Script Version
-$version="1.26"
+$version="1.28"
 $beginTime=Get-Date
 
 #Parm/Config entry type (Windows form or Powershell entry)
@@ -708,7 +721,7 @@ function chkForCompletion($jobList) {
       #             [math]::Round($job.endSize,3) + " GB   "
       $sizeInfo = "End size  : " + [math]::Round($job.endSize,3) + " GB  "
       $diskSavings = [math]::Round(($job.begSize - $job.endSize),3) 
-      $diskSavingsPCT = [string](100-[math]::Round(($job.endSize / $job.begSize)*100,2)) + "%"
+      $diskSavingsPCT = [string]([math]::Round(100-($job.endSize / $job.begSize)*100,2)) + "%"
       writeLog ($sizeInfo + "Disk savings: " + $diskSavings + " GB  " + $diskSavingsPCT) -logType "L"
       if ($diskSavings -ge 0) {
         Write-Color $sizeInfo, "Disk savings: ", $diskSavings, " GB  ", $diskSavingsPCT -Color White, Black, Black, Black, Black -BackGroundColor $bgColor, Green, Green, Green, Green }
@@ -2124,6 +2137,61 @@ function recycleFile($fname) {
     [FileIO.FileSystem]::DeleteFile($fname, 'OnlyErrorDialogs', 'SendToRecycleBin')
 }
 
+# Display conversion history information (daily, monthly, yearly)
+function displayHistory() {
+  $HistoryLogFile = Join-Path -Path $logFilePath -ChildPath "VidMonHB_History.csv"
+  $historyCSV = Import-Csv $HistoryLogFile
+  $yyyy = (get-date -Format yyyy)
+  $mm = (get-date -Format MM)
+  $dd = (get-date -Format dd)
+  $historyDailyBegSize = 0
+  $historyDailyEndSize = 0
+  $historyDailyFileCount = 0
+  $historyMonthlyBegSize = 0
+  $historyMonthlyEndSize = 0
+  $historyMonthlyFileCount = 0
+  $historyYearlyBegSize = 0
+  $historyYearlyEndSize = 0
+  $historyYearlyFileCount = 0
+  foreach ($historyItem in $historyCSV) {
+    # Daily
+    if (($historyItem.yyyy -eq $yyyy) -and 
+        ([int]$historyItem.mm -eq [int]$mm ) -and 
+        ([int]$historyItem.dd -eq [int]$dd ))
+    {
+      $historyDailyBegSize += $historyItem.BegSize
+      $historyDailyEndSize += $historyItem.EndSize
+      $historyDailyFileCount += $historyItem.FileCount
+    }
+    # Monthly
+    if (($historyItem.yyyy -eq $yyyy) -and 
+        ([int]$historyItem.mm -eq [int]$mm ))
+    {
+      $historyMonthlyBegSize += $historyItem.BegSize
+      $historyMonthlyEndSize += $historyItem.EndSize
+      $historyMonthlyFileCount += $historyItem.FileCount
+    }
+    # Yearly
+    if (($historyItem.yyyy -eq $yyyy))
+    {
+      $historyYearlyBegSize += $historyItem.BegSize
+      $historyYearlyEndSize += $historyItem.EndSize
+      $historyYearlyFileCount += $historyItem.FileCount
+    }
+  }
+  Write-Color -LinesBefore 10  "     Yearly Totals    " -Color Blue -BackGroundColor Gray
+  Write-Color "Beginning Size: ",('{0:n0}' -f $historyYearlyBegSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
+  Write-Color "   Ending Size: ",('{0:n0}' -f $historyYearlyEndSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
+  Write-Color "    File Count: ",('{0:n0}' -f $historyYearlyFileCount) -Color Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan
+  Write-Color -LinesBefore 2   "    Monthly Totals    " -Color Blue -BackGroundColor Gray
+  Write-Color "Beginning Size: ",('{0:n0}' -f $historyMonthlyBegSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
+  Write-Color "   Ending Size: ",('{0:n0}' -f $historyMonthlyEndSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
+  Write-Color "    File Count: ",('{0:n0}' -f $historyMonthlyFileCount) -Color Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan
+  Write-Color -LinesBefore 2   "      Daily Totals    " -Color Blue -BackGroundColor Gray
+  Write-Color "Beginning Size: ",('{0:n0}' -f $historyDailyBegSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
+  Write-Color "   Ending Size: ",('{0:n0}' -f $historyDailyEndSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
+  Write-Color "    File Count: ",('{0:n0}' -f $historyDailyFileCount) -Color Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan
+}
 
 #-----------------------------------------[Start Execution]------------------------------------------
 
@@ -2581,14 +2649,35 @@ if ($resume) {
   }
 }
 else {
+  Clear-Host
+  Write-Color "`nSearching for files.  Hit Ctrl-C to break" -BackGroundColor DarkCyan -Color Yellow
   $videoFiles = Get-ChildItem -path $in -Recurse -include $incFiles | Select-Object -First $limit  
 }
 
 $fileCount = ($videofiles | Measure-Object).Count
 if ($fileCount -eq 0)
   {
-    writeLog  "`nNo files found in $in `nExiting."
+    writeLog  "`nNo files found in $in `nExiting.`n`n"
     Remove-Item $resumeFile -ErrorAction SilentlyContinue
+    # if repeatMonitor is set to true, just sit and loop until files are found
+    while ($true -eq $repeatMonitor) {
+      Clear-Host
+      $date = (get-date).ToString("MM/dd/yyyy hh:mm tt")
+      Write-Color "`n$date - VidMonHB Monitor mode - Searching for files.  Hit Ctrl-C to break" -BackGroundColor DarkCyan -Color Yellow
+      $videoFiles = Get-ChildItem -path $in -Recurse -include $incFiles
+      $fileCount = ($videofiles | Measure-Object).Count
+      if ($fileCount -gt 0) {Invoke-Expression -Command ($PSCommandPath + ' -repeatMonitor $true') ; return }
+      Clear-Host
+      displayHistory
+      $i=60; 
+      do {$i--
+          $date = (get-date).ToString("MM/dd/yyyy hh:mm tt")
+          Write-Progress -Activity "$date - VidMonHB Monitor mode - Will look for new files to process in 1 minute.  Hit Ctrl-C to break" -PercentComplete ($i/60*100) -Status "Seconds remaining $i"
+          Start-Sleep -Seconds 1
+      } while ($i -ne 0)
+      Write-Progress -Activity "$date - VidMonHB Monitor mode - Will look for new files to process in 1 minute.  Hit Ctrl-C to break" -Completed
+      Clear-Host
+    }
     Return
   }
 
@@ -2628,7 +2717,6 @@ if ( -not $in.Endswith("\")) { $in += "\" }
 if ( -not $out.Endswith("\")) { $out += "\" }
 if ( -not $movieBasePath.Endswith("\")) { $movieBasePath += "\" }
 if ( -not $TVShowBasePath.Endswith("\")) { $TVShowBasePath += "\" }
-
 
 ### TESTING
 #return  #TESTING
@@ -2759,7 +2847,7 @@ writeLog ("`nDisk space before conversion - " + '{0,7:n3}' -f $totBegSize + " GB
 writeLog (  "Disk space after conversion  - " + '{0,7:n3}' -f $totEndSize + " GB")
 #writeLog (  "Amount of disk space saved   - " + '{0,7:n3}' -f $totSizDiff + " GB") -logType "L"
 $totSizDiffStr = '{0,7:n3}' -f $totSizDiff + " GB  "
-$diskSavingsPCT = [string](100-[math]::Round(($totEndSize / $totBegSize)*100,2)) + "%"
+$diskSavingsPCT = [string]([math]::Round(100-($totEndSize / $totBegSize)*100,2)) + "%"
 writeLog (  "Amount of disk space saved   - " + $totSizDiffStr + $diskSavingsPCT) -logType "L"
 if ($totSizDiff -ge 0) {
   Write-Color "Amount of disk space saved   - ", $totSizDiffStr, $diskSavingsPCT -Color Yellow, Black, Black -BackGroundColor $bgColor, Green, Green }
@@ -2787,115 +2875,138 @@ switch ($postLog) {
   "Error" {if ($errorCount -gt 0) {Invoke-Item $sumLogFile}}
   "Always" {Invoke-Item $sumLogFile}
 }
+$HistoryObject = New-Object PSObject
+$HistoryObject | add-member -membertype NoteProperty -name "yyyy" -value (get-date -Format yyyy)
+$HistoryObject | add-member -membertype NoteProperty -name "mm" -value (get-date -Format MM)
+$HistoryObject | add-member -membertype NoteProperty -name "dd" -value (get-date -Format dd)
+$HistoryObject | add-member -membertype NoteProperty -name "BegSize" -value $totBegSize
+$HistoryObject | add-member -membertype NoteProperty -name "EndSize" -value $totEndSize
+$HistoryObject | add-member -membertype NoteProperty -name "FileCount" -value $fileCount
+$HistoryObject | add-member -membertype NoteProperty -name "ProcessHours" -value $timeDiff.Hours
+$HistoryObject | add-member -membertype NoteProperty -name "ProcessMinutes" -value $timeDiff.Minutes
+$HistoryObject | add-member -membertype NoteProperty -name "ProcessSeconds" -value $timeDiff.Seconds
+$HistoryObject | Export-Csv $HistoryLogFile -NoTypeInformation -Append
 
 #--------------------------------------------[Notifications]---------------------------------------------
 #If set, send out notification information
-if ($postNotify.ToUpper() -notin ("ALL","ERROR")) {
-  if ($repeatCtr -eq 0) {return}
-  else {
-    Invoke-Expression -Command ($PSCommandPath + ' -repeatCtr $repeatCtr')
-    return }
-}
-# Only notify if errors found
-if ($postNotify.ToUpper() -eq "ERROR" -and $errorCount -eq 0) {
-  if ($repeatCtr -eq 0) {return}
-  else {
-    Invoke-Expression -Command ($PSCommandPath + ' -repeatCtr $repeatCtr')
-    return }
-} 
+$goNotify = $false
+if ($postNotify.ToUpper() -eq "ALL") {$goNotify=$true}
+if ($postNotify.ToUpper() -eq "ERROR" -and $errorCount -gt 0) {$goNotify=$true}
 
-<# SMS Message Information
-    Alltel   - #1234567890@message.alltel.com
-    AT&T     - #1234567890@txt.att.net
-    Boost    - #1234567890@myboostmobile.com
-    MetroPCS - #1234567890@mymetropcs.com
-    Nextel   - #1234567890@messaging.nextel.com
-    Sprint   - #1234567890@messaging.sprintpcs.com
-    T-Mobile - #1234567890@tmomail.net
-    Verizon  - #1234567890@vtext.com
-    Virgin   - #1234567890@vmobl.com
-#>
+if ($goNotify -eq $true) {
+  <# SMS Message Information
+      Alltel   - #1234567890@message.alltel.com
+      AT&T     - #1234567890@txt.att.net
+      Boost    - #1234567890@myboostmobile.com
+      MetroPCS - #1234567890@mymetropcs.com
+      Nextel   - #1234567890@messaging.nextel.com
+      Sprint   - #1234567890@messaging.sprintpcs.com
+      T-Mobile - #1234567890@tmomail.net
+      Verizon  - #1234567890@vtext.com
+      Virgin   - #1234567890@vmobl.com
+  #>
 
-$textEncoding = [System.Text.Encoding]::UTF8
-# $smsToList array can be a comma delimited list (i.e. @("7327352069@vtext.com", "7325555555@vtext.com")
-$smsToList = @("7327352069@vtext.com")
+  $textEncoding = [System.Text.Encoding]::UTF8
+  # $smsToList array can be a comma delimited list (i.e. @("7327352069@vtext.com", "7325555555@vtext.com")
+  $smsToList = @("7327352069@vtext.com")
 
-if (($errorCount -gt 0) -or $readOnlyErrCnt) {$subject="$serverName - VidMonHB ERROR notification"}
-else {$subject = "$serverName - VidMonHB Successful notification"}
+  if (($errorCount -gt 0) -or $readOnlyErrCnt) {$subject="$serverName - VidMonHB ERROR notification"}
+  else {$subject = "$serverName - VidMonHB Successful notification"}
 
-#Send an SMS alert if the any errors were found
-if($errorCount -gt 0) {
-  #$s = New-Object System.Security.SecureString
-  #$creds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList "NT AUTHORITY\ANONYMOUS LOGON", $S
-  #$smsToList = @()
-  foreach ($smsTo in $smsToList) {
-    $smsProps = @{
-        to         = $smsTo
-        From       = $smtpFromEmail
-        body       = "Check server"
-        subject    = $subject
-        #Credential = $creds
-        smtpserver = $smtpServer
-        }
-        Send-MailMessage @smsProps
-        Start-Sleep -Seconds 1 # Pause for a few seconds before sending out the next message
-  } # Function sendNotification
-}
-
-#Send an email notification
-#$smtpToEmail="mrpaulwass@hotmail.com"
-$body = "<font face=""verdana"" size=""3"">See attached log for results</font>" 
-if($errorCount -gt 0) {
-  $body = "<font face=""verdana"" size=""3""><font color=""red"">HandBrake errors " +
-  "occurred during conversion</br></br>"
-}
-if($readOnlyErrCnt) {
-  $body += "<font face=""verdana"" size=""3""><font color=""red"">File(s) could not " +
-  "be deleted because ReadOnly flag can't be cleared." + 
-  " See list below:</font></br></br>"
-  foreach ($error in $readOnlyErrCnt) {
-    $body += $error
+  #Send an SMS alert if the any errors were found
+  if($errorCount -gt 0) {
+    #$s = New-Object System.Security.SecureString
+    #$creds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList "NT AUTHORITY\ANONYMOUS LOGON", $S
+    #$smsToList = @()
+    foreach ($smsTo in $smsToList) {
+      $smsProps = @{
+          to         = $smsTo
+          From       = $smtpFromEmail
+          body       = "Check server"
+          subject    = $subject
+          #Credential = $creds
+          smtpserver = $smtpServer
+          }
+          Send-MailMessage @smsProps
+          Start-Sleep -Seconds 1 # Pause for a few seconds before sending out the next message
+    } # Function sendNotification
   }
-}  
-$body += "<font color=""black"">See attached log for details</br></br></font>" 
 
-$emailProps = @{
-    From        = $smtpFromEmail
-    To          = $smtpToEmail
-    Subject     = $subject
-    Body        = $body
-    SmtpServer  = $smtpServer
-    BodyAsHtml  = $true
-    Priority    = "High"
-    Encoding    = $textEncoding
-    #Credential  = $creds
-    Attachments = $sumLogFile
-    ErrorAction = "Ignore"
+  #Send an email notification
+  #$smtpToEmail="mrpaulwass@hotmail.com"
+  $body = "<font face=""verdana"" size=""3"">See attached log for results</font>" 
+  if($errorCount -gt 0) {
+    $body = "<font face=""verdana"" size=""3""><font color=""red"">HandBrake errors " +
+    "occurred during conversion</br></br>"
+  }
+  if($readOnlyErrCnt) {
+    $body += "<font face=""verdana"" size=""3""><font color=""red"">File(s) could not " +
+    "be deleted because ReadOnly flag can't be cleared." + 
+    " See list below:</font></br></br>"
+    foreach ($error in $readOnlyErrCnt) {
+      $body += $error
     }
-Send-MailMessage @emailProps
+  }  
+  $body += "<font color=""black"">See attached log for details</br></br></font>" 
+
+  $emailProps = @{
+      From        = $smtpFromEmail
+      To          = $smtpToEmail
+      Subject     = $subject
+      Body        = $body
+      SmtpServer  = $smtpServer
+      BodyAsHtml  = $true
+      Priority    = "High"
+      Encoding    = $textEncoding
+      #Credential  = $creds
+      Attachments = $sumLogFile
+      ErrorAction = "Ignore"
+      }
+  Send-MailMessage @emailProps
+} #if ($goNotify -eq $true)
+
+  # if repeatMonitor is set to true, just sit and loop until files are found
+  while ($true -eq $repeatMonitor) {
+    $date = (get-date).ToString("MM/dd/yyyy hh:mm tt")
+    Clear-Host
+    Write-Color "`n$date - VidMonHB Monitor mode - Searching for files.  Hit Ctrl-C to break" -BackGroundColor DarkCyan -Color Yellow
+    $videoFiles = Get-ChildItem -path $in -Recurse -include $incFiles
+    $fileCount = ($videofiles | Measure-Object).Count
+    if ($fileCount -gt 0) {Invoke-Expression -Command ($PSCommandPath + ' -repeatMonitor $true') ; return }
+    Clear-Host
+    displayHistory
+    $i=60; 
+    do {$i--
+        $date = (get-date).ToString("MM/dd/yyyy hh:mm tt")
+        Write-Progress -Activity "$date - VidMonHB Monitor mode - Will look for new files to process in 1 minute.  Hit Ctrl-C to break" -PercentComplete ($i/60*100) -Status "Seconds remaining $i"
+        Start-Sleep -Seconds 1
+    } while ($i -ne 0)
+    Write-Progress -Activity "$date - VidMonHB Monitor mode - Will look for new files to process in 1 minute.  Hit Ctrl-C to break" -Completed
+    Clear-Host
+  }
+
+  if ($repeatCtr -eq 0) {return}  #exit script
+  else {
+    Invoke-Expression -Command ($PSCommandPath + ' -repeatCtr $repeatCtr')
+    return }  #exit script
+    
 <#
   TODO End task any open conhost.exe related to conversion (PID) (may not be necessary)
   TODO Find a better way to calculate ETA (based on prior results??)
   TODO Add health check ffmpeg.exe or handbrakecli
   TODO Assign process to CPU (affinity)
-
+  TODO - Corrections needed for $TVShowBasePath. Needs to have \ as final character.  Chk MovieBasePath too.
+  
   $Process = Get-Process Handbrakecli.exe; $Process.ProcessorAffinity=1"
-   Core # = Value = BitMask
-   Core 1 =   1 = 00000001
-   Core 2 =   2 = 00000010
-   Core 3 =   4 = 00000100
-   Core 4 =   8 = 00001000
-   Core 5 =  16 = 00010000
-   Core 6 =  32 = 00100000
-   Core 7 =  64 = 01000000
-   Core 8 = 128 = 10000000
+  Core # = Value = BitMask
+  Core 1 =   1 = 00000001
+  Core 2 =   2 = 00000010
+  Core 3 =   4 = 00000100
+  Core 4 =   8 = 00001000
+  Core 5 =  16 = 00010000
+  Core 6 =  32 = 00100000
+  Core 7 =  64 = 01000000
+  Core 8 = 128 = 10000000
 All Cores = 255 = 11111111
 Add the decimal values together for which core you want to use. 255 = All 8 cores.
 #>
-
-if ($repeatCtr -eq 0) {return}
-else {
-  Invoke-Expression -Command ($PSCommandPath + ' -repeatCtr $repeatCtr')
-  return }
-
-#TODO - Corrections needed for $TVShowBasePath. Needs to have \ as final character.  Chk MovieBasePath too.
