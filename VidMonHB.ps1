@@ -2885,6 +2885,7 @@ $HistoryObject | add-member -membertype NoteProperty -name "FileCount" -value $f
 $HistoryObject | add-member -membertype NoteProperty -name "ProcessHours" -value $timeDiff.Hours
 $HistoryObject | add-member -membertype NoteProperty -name "ProcessMinutes" -value $timeDiff.Minutes
 $HistoryObject | add-member -membertype NoteProperty -name "ProcessSeconds" -value $timeDiff.Seconds
+$HistoryLogFile = Join-Path -Path $logFilePath -ChildPath "VidMonHB_History.csv"
 $HistoryObject | Export-Csv $HistoryLogFile -NoTypeInformation -Append
 
 #--------------------------------------------[Notifications]---------------------------------------------
