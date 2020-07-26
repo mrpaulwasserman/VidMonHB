@@ -1,8 +1,8 @@
 #Note - Backslash requires an additional forcing backslash
 #vidtypes can be a comma separated list (i.e. mkv,avi,mov)
-vidTypes=mkv,avi
+vidTypes=xyz
 #in is the input location where to scan video file
-in=%UserProfile%\\Downloads\\*
+in=C:\\Users\\Paul\\Downloads\\*
 #out is the destination location where converted files will be written to
 out=D:\\Media
 #outSameAsIn overrides 'out' parameter. If set to true, the converted files
@@ -11,9 +11,9 @@ outSameAsIn=False
 #If delAfterConv is not set to Maintain, the original file will be deleted/recycled after being converted
 delAfterConv=Maintain
 #hbloc is the location where the HandBrakeCLI.exe program is located
-hbloc=%ProgramFiles%\\HandBrake\\HandBrakeCLI.exe
+hbloc=C:\\Program Files\\HandBrake\\HandBrakeCLI.exe
 #hbpreloc is the location where the HandBrake presets file is located
-hbpreloc=%appdata%\\HandBrake\\presets.json
+hbpreloc=C:\\Users\\Paul\\AppData\\Roaming\\HandBrake\\presets.json
 #tvPreset is the default preset to use during conversion
 tvPreset=VeryFastDDtoAAC
 #moviePreset is the default preset to use during conversion
@@ -27,7 +27,7 @@ movefiles=False
 #Default location where TV Shows will be written to
 TVShowBasePath=D:\\Media\\20. TV Shows\\
 #Default location where movies will be written to
-movieBasePath=D:\\Media\\01. Movies\\
+movieBasePath=d:\\Media\\00. Movies
 #If ParallelProcMax is > 1, script will convert multiple files in parallel based on setting (maximum is 10)
 #i.e. If ParallelProcMax is set to 4, script will create 4 separate conversion threads.
 #Warning - High settings may cause system problems (i.e. CPU Max, out of memory, etc.).

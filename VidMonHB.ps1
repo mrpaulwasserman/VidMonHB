@@ -2146,12 +2146,16 @@ function displayHistory() {
   $dd = (get-date -Format dd)
   $historyDailyBegSize = 0
   $historyDailyEndSize = 0
+  $historyDailyPct = 0
   $historyDailyFileCount = 0
+  $historyDailyPercentage = 0
   $historyMonthlyBegSize = 0
   $historyMonthlyEndSize = 0
+  $historyMonthlyPct = 0
   $historyMonthlyFileCount = 0
   $historyYearlyBegSize = 0
   $historyYearlyEndSize = 0
+  $historyYearlyPct = 0
   $historyYearlyFileCount = 0
   foreach ($historyItem in $historyCSV) {
     # Daily
@@ -2161,6 +2165,7 @@ function displayHistory() {
     {
       $historyDailyBegSize += $historyItem.BegSize
       $historyDailyEndSize += $historyItem.EndSize
+      $historyDailyPct = [string]([math]::Round(100-($historyDailyEndSize / $historyDailyBegSize)*100,0)) + "%"
       $historyDailyFileCount += $historyItem.FileCount
     }
     # Monthly
@@ -2169,6 +2174,7 @@ function displayHistory() {
     {
       $historyMonthlyBegSize += $historyItem.BegSize
       $historyMonthlyEndSize += $historyItem.EndSize
+      $historyMonthlyPct = [string]([math]::Round(100-($historyMonthlyEndSize / $historyMonthlyBegSize)*100,0)) + "%"
       $historyMonthlyFileCount += $historyItem.FileCount
     }
     # Yearly
@@ -2176,20 +2182,36 @@ function displayHistory() {
     {
       $historyYearlyBegSize += $historyItem.BegSize
       $historyYearlyEndSize += $historyItem.EndSize
+      $historyYearlyPct = [string]([math]::Round(100-($historyYearlyEndSize / $historyYearlyBegSize)*100,0)) + "%"
       $historyYearlyFileCount += $historyItem.FileCount
     }
   }
+
   Write-Color -LinesBefore 10  "     Yearly Totals    " -Color Blue -BackGroundColor Gray
   Write-Color "Beginning Size: ",('{0:n0}' -f $historyYearlyBegSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
   Write-Color "   Ending Size: ",('{0:n0}' -f $historyYearlyEndSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
+  if ($historyYearlyPct -ge 0) {
+    Write-Color "  Disk Savings: ", $historyYearlyPct -Color Cyan, Cyan -BackGroundColor DarkCyan, DarkCyan }
+  else {        
+    Write-Color "     Disk Loss: ", $historyYearlyPct -Color Cyan, Cyan -BackGroundColor DarkCyan, DarkCyan }
   Write-Color "    File Count: ",('{0:n0}' -f $historyYearlyFileCount) -Color Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan
+
   Write-Color -LinesBefore 2   "    Monthly Totals    " -Color Blue -BackGroundColor Gray
   Write-Color "Beginning Size: ",('{0:n0}' -f $historyMonthlyBegSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
   Write-Color "   Ending Size: ",('{0:n0}' -f $historyMonthlyEndSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
+  if ($historyMonthlyPct -ge 0) {
+    Write-Color "  Disk Savings: ", $historyMonthlyPct -Color Cyan, Cyan -BackGroundColor DarkCyan, DarkCyan }
+  else {        
+    Write-Color "     Disk Loss: ", $historyMonthlyPct -Color Cyan, Cyan -BackGroundColor DarkCyan, DarkCyan }
   Write-Color "    File Count: ",('{0:n0}' -f $historyMonthlyFileCount) -Color Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan
+
   Write-Color -LinesBefore 2   "      Daily Totals    " -Color Blue -BackGroundColor Gray
   Write-Color "Beginning Size: ",('{0:n0}' -f $historyDailyBegSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
   Write-Color "   Ending Size: ",('{0:n0}' -f $historyDailyEndSize)," GB" -Color Yellow, Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan, DarkCyan
+  if ($historyDailyPct -ge 0) {
+    Write-Color "  Disk Savings: ", $historyDailyPct -Color Cyan, Cyan -BackGroundColor DarkCyan, DarkCyan }
+  else {        
+    Write-Color "     Disk Loss: ", $historyDailyPct -Color Cyan, Cyan -BackGroundColor DarkCyan, DarkCyan }
   Write-Color "    File Count: ",('{0:n0}' -f $historyDailyFileCount) -Color Yellow, Yellow -BackGroundColor DarkCyan, DarkCyan
 }
 
