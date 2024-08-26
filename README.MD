@@ -21,10 +21,10 @@ Sample Output Folder Below:
 |   |-- 04. Movies 2020-2029
 
 
-\Media\20. TV Shows is the base default location:
+\Media\02. TV Shows is the base default location:
 
-\Media\20. TV Shows
-|-- 20. TV Shows
+\Media\02. TV Shows
+|-- 02. TV Shows
 |   |-- Dynasty
 |   |-- Green Acres
 |   |-- The Andy Griffith Show
