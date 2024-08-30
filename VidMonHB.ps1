@@ -86,7 +86,7 @@ Video Monitor HandBrake Converter - Windows PowerShell Script
 
 .PARAMETER 13
     $TVShowBasePath : TV Show Output Folder (used for moving files)
-    Default         : "D:\\Media\\20. TV Shows\\"
+    Default         : "D:\\Media\\02. TV Shows\\"
 
 .PARAMETER 14 
     $movieBasePath : Movie Output Folder (used for moving files)
@@ -239,6 +239,8 @@ Video Monitor HandBrake Converter - Windows PowerShell Script
                               .\VidMonHB.ps1 -repeatmonitor $true
             1.28   07/22/2020 Add running history information $HistoryLogFile.
                               Display history summary during monitor mode
+            1.29   08/30/2024 Provide option to skip smaller files.
+
 
 
   First time execution may require running the following command (for PowerShell 5 & lower)
@@ -268,10 +270,10 @@ When the Move File option is set, converted files are moved to the approriate fo
     |   |-- 04. Movies 2020-2029
 
 
-\Media\20. TV Shows  is the base default location:
+\Media\02. TV Shows  is the base default location:
 
-    \Media\20. TV Shows
-    |-- 20. TV Shows
+    \Media\02. TV Shows
+    |-- 02. TV Shows
     |   |-- Dynasty
     |   |-- Green Acres
     |   |-- The Andy Griffith Show
@@ -287,7 +289,7 @@ When the Move File option is set, converted files are moved to the approriate fo
   --> Converts .avi files, Recycle the originals, and add the Optimize HandBrake option
 
 .EXAMPLE
-  VidMonHB.ps1 -vidTypes mkv -delAfterConv Maintain -movefiles True $TVShowBasePath "D:\\Media\\20. TV Shows\\""
+  VidMonHB.ps1 -vidTypes mkv -delAfterConv Maintain -movefiles True $TVShowBasePath "D:\\Media\\02. TV Shows\\""
   --> Converts .mkv files, maintain the originals, move the converted files to new base location
 
 .EXAMPLE
@@ -368,7 +370,7 @@ Param
     # TV Show Output Folder (used for moving files)
 	  # This is typically changed during initial setup.
     [Parameter(Position=13)]
-    [string]$TVShowBasePath = "D:\Media\20. TV Shows\",
+    [string]$TVShowBasePath = "D:\Media\02. TV Shows\",
 
     # Movie Output Folder (used for moving files)
 	  # This is typically changed during initial setup.
@@ -427,7 +429,11 @@ Param
 
     # Continually monitor and repeat running when a file is found
     [Parameter(Position=25)]
-    [Boolean]$repeatMonitor = $false
+    [Boolean]$repeatMonitor = $false,
+
+    # Look for files larger than specified size
+    [Parameter(Position=26)]
+    [string]$minSize = "0gb"
 
   )
 
@@ -436,7 +442,7 @@ Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 #Script Version
-$version="1.28"
+$version="1.29"
 $beginTime=Get-Date
 
 #Parm/Config entry type (Windows form or Powershell entry)
@@ -506,7 +512,7 @@ $bs3 = [System.Windows.Forms.BorderStyle]'Fixed3D'
 
 #--------------------------------------------[Functions]---------------------------------------------
 
-#Function to clear the Tit le metadata
+#Function to clear the Title metadata
 function clearTitleMeta {
   Param ([string[]]$fileName)
   if ( -not ($ClearMetaFlag)) {return}
@@ -2673,7 +2679,7 @@ if ($resume) {
 else {
   Clear-Host
   Write-Color "`nSearching for files.  Hit Ctrl-C to break" -BackGroundColor DarkCyan -Color Yellow
-  $videoFiles = Get-ChildItem -path $in -Recurse -include $incFiles | Select-Object -First $limit  
+  $videoFiles = Get-ChildItem -path $in -Recurse -include $incFiles | where Length -gt $minSize | Select-Object -First $limit  
 }
 
 $fileCount = ($videofiles | Measure-Object).Count
@@ -2686,7 +2692,7 @@ if ($fileCount -eq 0)
       Clear-Host
       $date = (get-date).ToString("MM/dd/yyyy hh:mm tt")
       Write-Color "`n$date - VidMonHB Monitor mode - Searching for files.  Hit Ctrl-C to break" -BackGroundColor DarkCyan -Color Yellow
-      $videoFiles = Get-ChildItem -path $in -Recurse -include $incFiles
+      $videoFiles = Get-ChildItem -path $in -Recurse -include $incFiles | where Length -gt $minSize
       $fileCount = ($videofiles | Measure-Object).Count
       if ($fileCount -gt 0) {Invoke-Expression -Command ($PSCommandPath + ' -repeatMonitor $true') ; return }
       Clear-Host
@@ -2993,7 +2999,7 @@ if ($goNotify -eq $true) {
     $date = (get-date).ToString("MM/dd/yyyy hh:mm tt")
     Clear-Host
     Write-Color "`n$date - VidMonHB Monitor mode - Searching for files.  Hit Ctrl-C to break" -BackGroundColor DarkCyan -Color Yellow
-    $videoFiles = Get-ChildItem -path $in -Recurse -include $incFiles
+    $videoFiles = Get-ChildItem -path $in -Recurse -include $incFiles | where Length -gt $minSize
     $fileCount = ($videofiles | Measure-Object).Count
     if ($fileCount -gt 0) {Invoke-Expression -Command ($PSCommandPath + ' -repeatMonitor $true') ; return }
     Clear-Host
